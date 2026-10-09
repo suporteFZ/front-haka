@@ -8,8 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-arimo);
+  --font-heading: var(--font-spartan);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,3 +24,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Regras essenciais do Lenis para cálculo dinâmico de altura */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+/* Previne que iframes capturem o ponteiro/wheel durante a rolagem suave do Lenis */
+html.lenis.lenis-scrolling iframe,
+html.lenis-scrolling iframe,
+.lenis.lenis-scrolling iframe,
+.lenis-scrolling iframe {
+  pointer-events: none !important;
+}
+
+/* Scrollbar sutil e moderna para a lista do carrinho */
+.cart-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.cart-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cart-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 9999px;
+}
+.cart-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+.cart-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
