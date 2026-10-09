@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   const q = searchParams.get("q")?.trim() || "";
   const category = searchParams.get("category")?.trim() || "";
   const brand = searchParams.get("brand")?.trim() || "";
+  const brandSlug = searchParams.get("brandSlug")?.trim() || "";
   const color = searchParams.get("color")?.trim() || "";
   const priceMin = searchParams.get("priceMin");
   const priceMax = searchParams.get("priceMax");
@@ -67,7 +68,9 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  if (brand && brand !== "all") {
+  if (brandSlug) {
+    queryParts.push(`filters[marca][slug][$eqi]=${encodeURIComponent(brandSlug)}`);
+  } else if (brand && brand !== "all") {
     queryParts.push(`filters[marca][Nome][$eqi]=${encodeURIComponent(brand)}`);
   }
 

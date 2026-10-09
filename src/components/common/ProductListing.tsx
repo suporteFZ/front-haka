@@ -21,6 +21,8 @@ interface ProductListingProps {
   searchQuery?: string;
   categorySlug?: string;
   subcategorySlugs?: string[];
+  brandSlug?: string;
+  brandName?: string;
   isSearch?: boolean;
 }
 
@@ -49,6 +51,8 @@ export default function ProductListing({
   searchQuery,
   categorySlug,
   subcategorySlugs,
+  brandSlug,
+  brandName,
   isSearch = false,
 }: ProductListingProps) {
   const searchParams = useSearchParams();
@@ -166,7 +170,11 @@ export default function ProductListing({
             params.set("subcategories", subcategorySlugs.join(","));
           }
         }
-        if (selectedBrand !== "all") params.set("brand", selectedBrand);
+        if (brandSlug) {
+          params.set("brandSlug", brandSlug);
+        } else if (selectedBrand !== "all") {
+          params.set("brand", selectedBrand);
+        }
         if (selectedColor !== "all") params.set("color", selectedColor);
 
         if (selectedPriceRange !== "all") {
@@ -222,7 +230,7 @@ export default function ProductListing({
         console.error("Erro ao carregar mais produtos:", err);
       }
     },
-    [effectiveSearchQuery, effectiveCategorySlug, subcategorySlugs, selectedBrand, selectedColor, selectedPriceRange, selectedSort]
+    [effectiveSearchQuery, effectiveCategorySlug, subcategorySlugs, brandSlug, selectedBrand, selectedColor, selectedPriceRange, selectedSort]
   );
 
   // Resetar quando a busca inicial ou categoria mudar (ex: nova navegação)
@@ -240,7 +248,7 @@ export default function ProductListing({
     setSelectedColor("all");
     setSelectedSort("default");
     isInitialMount.current = true;
-  }, [initialProducts, propProducts, initialPagination, effectiveSearchQuery, effectiveCategorySlug, subcategorySlugs]);
+  }, [initialProducts, propProducts, initialPagination, effectiveSearchQuery, effectiveCategorySlug, subcategorySlugs, brandSlug]);
 
   // Recarregar da página 1 quando filtros mudarem
   useEffect(() => {
@@ -288,7 +296,7 @@ export default function ProductListing({
 
   const hasActiveFilters =
     selectedPriceRange !== "all" ||
-    selectedBrand !== "all" ||
+    (!brandSlug && selectedBrand !== "all") ||
     selectedColor !== "all" ||
     selectedSort !== "default";
 
@@ -380,72 +388,74 @@ export default function ProductListing({
           </div>
 
           {/* Dropdown: Marcas */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() =>
-                setOpenDropdown(openDropdown === "brand" ? null : "brand")
-              }
-              className={`flex items-center gap-1.5 text-[13px] md:text-[14px] font-sans cursor-pointer transition-colors ${
-                selectedBrand !== "all"
-                  ? "font-semibold text-black"
-                  : "text-stone-800 hover:text-black"
-              }`}
-            >
-              <span>Marcas</span>
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className={`transition-transform duration-200 text-stone-700 ${
-                  openDropdown === "brand" ? "rotate-180" : ""
+          {!brandSlug && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenDropdown(openDropdown === "brand" ? null : "brand")
+                }
+                className={`flex items-center gap-1.5 text-[13px] md:text-[14px] font-sans cursor-pointer transition-colors ${
+                  selectedBrand !== "all"
+                    ? "font-semibold text-black"
+                    : "text-stone-800 hover:text-black"
                 }`}
               >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
-            {openDropdown === "brand" && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 bg-white border border-stone-200 rounded-xl shadow-lg p-2 z-30 flex flex-col gap-1 max-h-64 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedBrand("all");
-                    setOpenDropdown(null);
-                  }}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer ${
-                    selectedBrand === "all"
-                      ? "bg-stone-100 font-semibold text-black"
-                      : "hover:bg-stone-50 text-stone-700"
+                <span>Marcas</span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`transition-transform duration-200 text-stone-700 ${
+                    openDropdown === "brand" ? "rotate-180" : ""
                   }`}
                 >
-                  Todas as marcas
-                </button>
-                {availableBrands.map((brand) => (
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {openDropdown === "brand" && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-52 bg-white border border-stone-200 rounded-xl shadow-lg p-2 z-30 flex flex-col gap-1 max-h-64 overflow-y-auto">
                   <button
-                    key={brand}
                     type="button"
                     onClick={() => {
-                      setSelectedBrand(brand);
+                      setSelectedBrand("all");
                       setOpenDropdown(null);
                     }}
                     className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer ${
-                      selectedBrand === brand
+                      selectedBrand === "all"
                         ? "bg-stone-100 font-semibold text-black"
                         : "hover:bg-stone-50 text-stone-700"
                     }`}
                   >
-                    {brand}
+                    Todas as marcas
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
+                  {availableBrands.map((brand) => (
+                    <button
+                      key={brand}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBrand(brand);
+                        setOpenDropdown(null);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer ${
+                        selectedBrand === brand
+                          ? "bg-stone-100 font-semibold text-black"
+                          : "hover:bg-stone-50 text-stone-700"
+                      }`}
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Dropdown: Cor */}
           <div className="relative">
@@ -694,6 +704,8 @@ export default function ProductListing({
                 ? "Tente ajustar ou limpar os filtros para encontrar o que procura."
                 : isSearch
                 ? "Não encontramos resultados para esta busca. Tente palavras-chave diferentes."
+                : brandName || brandSlug
+                ? `Não há produtos disponíveis da marca ${brandName || title} no momento.`
                 : "Não há produtos disponíveis nesta categoria no momento."}
             </p>
             {hasActiveFilters ? (
@@ -843,7 +855,7 @@ export default function ProductListing({
           </div>
 
           {/* Seção Dropdown: Marcas */}
-          {availableBrands.length > 0 && (
+          {!brandSlug && availableBrands.length > 0 && (
             <div className="flex flex-col py-3">
               <button
                 type="button"
