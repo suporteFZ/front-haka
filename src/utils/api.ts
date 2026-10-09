@@ -1,7 +1,7 @@
 export function getStrapiURL(path = "") {
-  return `${
-    process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337"
-  }${path}`;
+  const baseUrl = (process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337").replace(/\/$/, "");
+  const cleanPath = path ? (path.startsWith("/") ? path : `/${path}`) : "";
+  return `${baseUrl}${cleanPath}`;
 }
 
 export function getStrapiMedia(url: string | null | undefined) {
@@ -15,5 +15,7 @@ export function getStrapiMedia(url: string | null | undefined) {
   }
 
   // Adiciona a URL do Strapi como base para imagens relativas
-  return `${process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337"}${url}`;
+  const baseUrl = (process.env.NEXT_PUBLIC_STRAPI_URL || "http://localhost:1337").replace(/\/$/, "");
+  const cleanUrl = url.startsWith("/") ? url : `/${url}`;
+  return `${baseUrl}${cleanUrl}`;
 }
