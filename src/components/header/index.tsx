@@ -21,6 +21,7 @@ export default function Header({ globalData }: HeaderProps) {
   const isWhiteBgPage =
     pathname?.startsWith("/produto") ||
     pathname?.startsWith("/categoria") ||
+    pathname?.startsWith("/marca") ||
     pathname?.startsWith("/busca") ||
     pathname?.startsWith("/projetos") ||
     pathname?.startsWith("/showroom");
