@@ -107,9 +107,7 @@ export const FALLBACK_PROJECTS: ProjetoItem[] = [
     Imagem_capa: {
       url: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1200&q=80",
     },
-    Logo_cliente: {
-      url: "https://primato.com.br/wp-content/themes/primato/assets/img/logo.svg",
-    },
+    Logo_cliente: undefined,
     Descricao_curta:
       "Entregamos mais de 50 cadeiras ergonômicas certificadas, mesas com regulagem de altura e soluções corporativas...",
     Desafio:

@@ -19,9 +19,10 @@ interface ProjectsCallProps {
     Link_botao?: string;
     projetos?: ProjetoItem[];
   } | null;
+  featuredProjects?: ProjetoItem[];
 }
 
-export default function ProjectsCall({ data }: ProjectsCallProps) {
+export default function ProjectsCall({ data, featuredProjects }: ProjectsCallProps) {
   const title =
     data?.Titulo || "Design que respeita a arquitetura do corpo";
   const description =
@@ -36,11 +37,30 @@ export default function ProjectsCall({ data }: ProjectsCallProps) {
   const buttonText = data?.Texto_botao || "Ver Nosso Portfólio";
   const buttonLink = data?.Link_botao || "/projetos";
 
-  // Se houver projetos cadastrados no Strapi, usamos eles. Caso contrário, usamos os fallbacks do design
-  const projects: ProjetoItem[] =
-    data?.projetos && data.projetos.length > 0
+  // Prioriza projetos com Destaque_home no Strapi ou vinculados na home
+  const strapiProjects =
+    (featuredProjects && featuredProjects.length > 0)
+      ? featuredProjects
+      : (data?.projetos && data.projetos.length > 0)
       ? data.projetos
-      : FALLBACK_PROJECTS.slice(0, 2);
+      : [];
+
+  const projects: ProjetoItem[] = [...strapiProjects];
+
+  // Se houver menos de 2 projetos no Strapi, complementa com fallbacks sem duplicar cliente ou slug
+  if (projects.length < 2) {
+    const existingSlugs = new Set(projects.map((p) => p.slug));
+    const existingClients = new Set(
+      projects.map((p) => p.Cliente?.toLowerCase().trim()).filter(Boolean)
+    );
+    for (const fallback of FALLBACK_PROJECTS) {
+      const fallbackClient = fallback.Cliente?.toLowerCase().trim();
+      if (!existingSlugs.has(fallback.slug) && !existingClients.has(fallbackClient)) {
+        projects.push(fallback);
+        if (projects.length >= 2) break;
+      }
+    }
+  }
 
   return (
     <section className="w-full bg-white py-16 md:py-24 px-[17px] md:px-8 flex items-center justify-center border-t border-[#EDEDED]">

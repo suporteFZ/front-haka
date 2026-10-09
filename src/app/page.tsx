@@ -5,7 +5,7 @@ import Feedbacks from "@/components/home/Feedbacks";
 import FeaturedProduct from "@/components/home/FeaturedProduct";
 import BestSellers from "@/components/home/BestSellers";
 import Catalog from "@/components/home/Catalog";
-import ProjectsCall from "@/components/home/ProjectsCall";
+import ProjectsCall, { ProjetoItem } from "@/components/home/ProjectsCall";
 import { getStrapiURL } from "@/utils/api";
 
 async function getHomeData() {
@@ -54,11 +54,46 @@ async function getCatalogProducts() {
   }
 }
 
+// Buscar projetos marcados com "Destaque_home: true" (ou primeiros projetos do Strapi)
+async function getFeaturedProjects(): Promise<ProjetoItem[]> {
+  try {
+    // 1. Tenta buscar projetos com Destaque_home = true
+    const url = getStrapiURL(
+      "/api/projetos?filters[Destaque_home][$eq]=true&populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=Ordem:asc&sort[1]=createdAt:desc"
+    );
+    const res = await fetch(url, { cache: "no-store" });
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data;
+      }
+    }
+
+    // 2. Se nenhum estiver marcado como destaque, busca os primeiros projetos cadastrados
+    const fallbackUrl = getStrapiURL(
+      "/api/projetos?populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=Ordem:asc&sort[1]=createdAt:desc&pagination[pageSize]=2"
+    );
+    const fallbackRes = await fetch(fallbackUrl, { cache: "no-store" });
+    if (fallbackRes.ok) {
+      const fallbackJson = await fallbackRes.json();
+      if (fallbackJson?.data && Array.isArray(fallbackJson.data) && fallbackJson.data.length > 0) {
+        return fallbackJson.data;
+      }
+    }
+
+    return [];
+  } catch (error) {
+    console.error("Erro ao buscar projetos em destaque para a home:", error);
+    return [];
+  }
+}
+
 export default async function Home() {
-  const [homeData, bestSellers, catalogProducts] = await Promise.all([
+  const [homeData, bestSellers, catalogProducts, featuredProjects] = await Promise.all([
     getHomeData(),
     getBestSellers(),
     getCatalogProducts(),
+    getFeaturedProjects(),
   ]);
 
   if (!homeData) {
@@ -88,7 +123,7 @@ export default async function Home() {
       )}
 
       {/* SEÇÃO CHAMADA DE PROJETOS / PORTFÓLIO */}
-      <ProjectsCall data={homeData.Projetos} />
+      <ProjectsCall data={homeData.Projetos} featuredProjects={featuredProjects} />
 
       {/* SEÇÃO PRODUTO DESTAQUE */}
       {homeData.Produto_destaque && (
