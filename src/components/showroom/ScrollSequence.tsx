@@ -82,7 +82,8 @@ export default function ScrollSequence({
   className = "",
   scrollContainerRef,
 }: ScrollSequenceProps) {
-  const isVideoMode = Boolean(videoDesktopUrl || videoMobileUrl);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const isVideoMode = Boolean((videoDesktopUrl || videoMobileUrl) && !videoError);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -95,6 +96,7 @@ export default function ScrollSequence({
   const mobileVideoRef = useRef<HTMLVideoElement>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState<number>(0);
+  const [scrollProgress, setScrollProgress] = useState<number>(0);
   const targetTimeRef = useRef<number>(0);
   const videoRafIdRef = useRef<number | null>(null);
 
@@ -152,10 +154,20 @@ export default function ScrollSequence({
   }, [images, isVideoMode]);
 
   // Carregamento de metadados do vídeo
-  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+  const handleVideoMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const dur = e.currentTarget.duration;
     if (dur && !isNaN(dur) && dur > 0) {
       setVideoDuration((prev) => Math.max(prev, dur));
+    }
+  };
+
+  // Tratamento de erro de formato de vídeo (ex: .MOV em navegadores web que não suportam)
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const err = e.currentTarget.error;
+    console.warn("ScrollSequence: Arquivo de vídeo incompatível ou não decodificável (.MOV em navegador sem codec QuickTime):", err);
+    // Ativa fallback para imagens se disponíveis
+    if (images.length > 0) {
+      setVideoError("unsupported_video");
     }
   };
 
@@ -163,12 +175,16 @@ export default function ScrollSequence({
   useEffect(() => {
     if (!isVideoMode) return;
     if (desktopVideoRef.current) {
-      desktopVideoRef.current.pause();
-      desktopVideoRef.current.currentTime = 0;
+      try {
+        desktopVideoRef.current.pause();
+        desktopVideoRef.current.currentTime = 0;
+      } catch {}
     }
     if (mobileVideoRef.current) {
-      mobileVideoRef.current.pause();
-      mobileVideoRef.current.currentTime = 0;
+      try {
+        mobileVideoRef.current.pause();
+        mobileVideoRef.current.currentTime = 0;
+      } catch {}
     }
   }, [isVideoMode, videoDesktopUrl, videoMobileUrl]);
 
@@ -178,21 +194,25 @@ export default function ScrollSequence({
     const time = targetTimeRef.current;
 
     const desktopVid = desktopVideoRef.current;
-    if (desktopVid && desktopVid.readyState >= 1) {
-      if ("fastSeek" in desktopVid && typeof (desktopVid as any).fastSeek === "function") {
-        (desktopVid as any).fastSeek(time);
-      } else {
-        desktopVid.currentTime = time;
-      }
+    if (desktopVid) {
+      try {
+        if ("fastSeek" in desktopVid && typeof (desktopVid as any).fastSeek === "function") {
+          (desktopVid as any).fastSeek(time);
+        } else {
+          desktopVid.currentTime = time;
+        }
+      } catch {}
     }
 
     const mobileVid = mobileVideoRef.current;
-    if (mobileVid && mobileVid.readyState >= 1) {
-      if ("fastSeek" in mobileVid && typeof (mobileVid as any).fastSeek === "function") {
-        (mobileVid as any).fastSeek(time);
-      } else {
-        mobileVid.currentTime = time;
-      }
+    if (mobileVid) {
+      try {
+        if ("fastSeek" in mobileVid && typeof (mobileVid as any).fastSeek === "function") {
+          (mobileVid as any).fastSeek(time);
+        } else {
+          mobileVid.currentTime = time;
+        }
+      } catch {}
     }
 
     setVideoCurrentTime(time);
@@ -274,6 +294,7 @@ export default function ScrollSequence({
       }
 
       const progress = maxScroll > 0 ? scrollY / maxScroll : 0;
+      setScrollProgress(progress);
 
       // =====================================================================
       // COMPORTAMENTO PARA MODO VÍDEO
@@ -454,12 +475,14 @@ export default function ScrollSequence({
   // Progresso em porcentagem (0 a 100) para a barra progressiva
   const progressPercent = useMemo(() => {
     if (isVideoMode) {
-      if (videoDuration <= 0) return 0;
+      if (videoDuration <= 0) {
+        return Math.min(Math.max(scrollProgress * 100, 0), 100);
+      }
       return Math.min(Math.max((videoCurrentTime / videoDuration) * 100, 0), 100);
     }
     if (images.length <= 1) return 100;
     return Math.min(Math.max((activeImageIndex / (images.length - 1)) * 100, 0), 100);
-  }, [isVideoMode, videoDuration, videoCurrentTime, images.length, activeImageIndex]);
+  }, [isVideoMode, videoDuration, videoCurrentTime, scrollProgress, images.length, activeImageIndex]);
 
   return (
     <div
@@ -488,7 +511,11 @@ export default function ScrollSequence({
                 preload="auto"
                 disablePictureInPicture
                 disableRemotePlayback
-                onLoadedMetadata={handleLoadedMetadata}
+                onLoadedMetadata={handleVideoMetadata}
+                onDurationChange={handleVideoMetadata}
+                onLoadedData={handleVideoMetadata}
+                onCanPlay={handleVideoMetadata}
+                onError={handleVideoError}
                 className={`w-full h-full object-cover object-center pointer-events-none ${
                   videoMobileUrl ? "hidden md:block" : "block"
                 }`}
@@ -505,7 +532,11 @@ export default function ScrollSequence({
                 preload="auto"
                 disablePictureInPicture
                 disableRemotePlayback
-                onLoadedMetadata={handleLoadedMetadata}
+                onLoadedMetadata={handleVideoMetadata}
+                onDurationChange={handleVideoMetadata}
+                onLoadedData={handleVideoMetadata}
+                onCanPlay={handleVideoMetadata}
+                onError={handleVideoError}
                 className={`w-full h-full object-cover object-center pointer-events-none ${
                   videoDesktopUrl ? "block md:hidden" : "block"
                 }`}
