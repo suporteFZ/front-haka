@@ -47,7 +47,7 @@ export default function MobileMenu({ isOpen, onClose, globalData, currentLogo, l
         <div className="w-full flex justify-center flex-shrink-0 border-b border-stone-100 pb-2">
           <div className={`flex items-center justify-between h-12 md:h-16 px-[17px] mt-4 md:mt-6 w-full ${contentWidth}`}>
             <Link href="/" onClick={onClose}>
-              <Image src={currentLogo} alt="Logo" width={logoSize} height={logoSize} className="object-contain w-5 h-auto" />
+              <Image src={currentLogo} alt="Logo" width={logoSize} height={logoSize} style={{ height: "auto" }} className="object-contain w-5 h-auto" />
             </Link>
             
             <div className="flex items-center gap-6">

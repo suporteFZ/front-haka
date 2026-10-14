@@ -4,17 +4,13 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from "react"
 
 export interface ScrollSequenceProps {
   /**
-   * Array ordenado de URLs das imagens que compõem a sequência da caminhada (usado se não houver vídeo)
+   * Array ordenado de URLs das imagens que compõem a sequência da caminhada (Desktop)
    */
   images?: string[];
   /**
-   * URL do vídeo para Desktop (se cadastrado no Strapi, ativa o modo Vídeo Scrubbing)
+   * Array ordenado de URLs das imagens para Mobile (telas menores que 768px)
    */
-  videoDesktopUrl?: string | null;
-  /**
-   * URL do vídeo para Mobile (se cadastrado no Strapi, exibido em telas menores que 768px)
-   */
-  videoMobileUrl?: string | null;
+  imagesMobile?: string[];
   /**
    * Altura do scroll por frame em pixels (padrão: 105px para 1 clique da rodinha do mouse avançar 1 frame).
    */
@@ -28,7 +24,7 @@ export interface ScrollSequenceProps {
    */
   duplicateFirstFrame?: boolean;
   /**
-   * Se verdadeiro, adiciona um passo final ao chegar na última imagem / fim do vídeo:
+   * Se verdadeiro, adiciona um passo final ao chegar na última imagem:
    * No último frame, mais um scroll ativa o efeito de vidro final com mensagem e botão de contato.
    * Padrão: true.
    */
@@ -70,8 +66,7 @@ export interface ScrollSequenceProps {
 
 export default function ScrollSequence({
   images = [],
-  videoDesktopUrl,
-  videoMobileUrl,
+  imagesMobile = [],
   pixelsPerFrame = 105,
   duplicateFirstFrame = true,
   hasEndOverlay = true,
@@ -82,23 +77,29 @@ export default function ScrollSequence({
   className = "",
   scrollContainerRef,
 }: ScrollSequenceProps) {
-  const [videoError, setVideoError] = useState<string | null>(null);
-  const isVideoMode = Boolean((videoDesktopUrl || videoMobileUrl) && !videoError);
+  const [isMobileScreen, setIsMobileScreen] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileScreen(typeof window !== "undefined" && window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const activeImages = useMemo(() => {
+    if (isMobileScreen && imagesMobile.length > 0) {
+      return imagesMobile;
+    }
+    return images.length > 0 ? images : imagesMobile;
+  }, [isMobileScreen, images, imagesMobile]);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
   const currentStepRef = useRef<number>(-1);
   const currentImageRef = useRef<number>(-1);
-
-  // Refs de Vídeo
-  const desktopVideoRef = useRef<HTMLVideoElement>(null);
-  const mobileVideoRef = useRef<HTMLVideoElement>(null);
-  const [videoDuration, setVideoDuration] = useState<number>(0);
-  const [videoCurrentTime, setVideoCurrentTime] = useState<number>(0);
-  const [scrollProgress, setScrollProgress] = useState<number>(0);
-  const targetTimeRef = useRef<number>(0);
-  const videoRafIdRef = useRef<number | null>(null);
 
   const onProgressRef = useRef(onProgress);
   onProgressRef.current = onProgress;
@@ -112,118 +113,42 @@ export default function ScrollSequence({
   // - duplicateFirstFrame: +1 passo inicial (passo 0: overlay inicial, passo 1: frame 0 limpo)
   // - hasEndOverlay: +1 passo final (penúltimo: frame final limpo, último: overlay final de contato)
   const totalImageSteps = useMemo(() => {
-    let steps = images.length > 0 ? images.length : 1;
-    if (!duplicateFirstFrame && images.length > 1) {
-      steps = images.length - 1;
+    let steps = activeImages.length > 0 ? activeImages.length : 1;
+    if (!duplicateFirstFrame && activeImages.length > 1) {
+      steps = activeImages.length - 1;
     }
-    if (hasEndOverlay && images.length > 0) {
+    if (hasEndOverlay && activeImages.length > 0) {
       steps += 1;
     }
     return steps;
-  }, [images.length, duplicateFirstFrame, hasEndOverlay]);
+  }, [activeImages.length, duplicateFirstFrame, hasEndOverlay]);
 
   const effectivePixels = pixelsPerFrame || 105;
-  const introThreshold = 105;
-  const outroThreshold = hasEndOverlay ? 105 : 0;
-
-  // Distância total de scroll:
-  // Modo vídeo: ~350px por segundo de vídeo (ou padrão 2200px) + 105px inicial + 105px final
-  // Modo imagem: totalImageSteps * 105px
-  const totalScrollDistance = isVideoMode
-    ? Math.max(
-        introThreshold +
-          outroThreshold +
-          (videoDuration > 0 ? Math.round(videoDuration * 350) : 2200),
-        1900
-      )
-    : totalImageSteps * effectivePixels;
+  const totalScrollDistance = totalImageSteps * effectivePixels;
 
   const trackHeight =
     customTrackHeight || `calc(100vh + ${totalScrollDistance}px)`;
 
-  // Pré-decodificação de imagens para o modo imagem
+  // Pré-decodificação de imagens para garantir 60fps instantâneo sem flicker
   useEffect(() => {
-    if (isVideoMode || images.length === 0) return;
-    images.forEach((url) => {
+    if (activeImages.length === 0) return;
+    imagesRef.current = [];
+    activeImages.forEach((url, i) => {
       const img = new window.Image();
       img.src = url;
+      imagesRef.current[i] = img;
       if (typeof img.decode === "function") {
         img.decode().catch(() => {});
       }
     });
-  }, [images, isVideoMode]);
-
-  // Carregamento de metadados do vídeo
-  const handleVideoMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const dur = e.currentTarget.duration;
-    if (dur && !isNaN(dur) && dur > 0) {
-      setVideoDuration((prev) => Math.max(prev, dur));
-    }
-  };
-
-  // Tratamento de erro de formato de vídeo (ex: .MOV em navegadores web que não suportam)
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const err = e.currentTarget.error;
-    console.warn("ScrollSequence: Arquivo de vídeo incompatível ou não decodificável (.MOV em navegador sem codec QuickTime):", err);
-    // Ativa fallback para imagens se disponíveis
-    if (images.length > 0) {
-      setVideoError("unsupported_video");
-    }
-  };
-
-  // Garante que os vídeos comecem pausados e no tempo 0
-  useEffect(() => {
-    if (!isVideoMode) return;
-    if (desktopVideoRef.current) {
-      try {
-        desktopVideoRef.current.pause();
-        desktopVideoRef.current.currentTime = 0;
-      } catch {}
-    }
-    if (mobileVideoRef.current) {
-      try {
-        mobileVideoRef.current.pause();
-        mobileVideoRef.current.currentTime = 0;
-      } catch {}
-    }
-  }, [isVideoMode, videoDesktopUrl, videoMobileUrl]);
-
-  // Aplicação suave do tempo do vídeo via requestAnimationFrame
-  const applyVideoTime = useCallback(() => {
-    videoRafIdRef.current = null;
-    const time = targetTimeRef.current;
-
-    const desktopVid = desktopVideoRef.current;
-    if (desktopVid) {
-      try {
-        if ("fastSeek" in desktopVid && typeof (desktopVid as any).fastSeek === "function") {
-          (desktopVid as any).fastSeek(time);
-        } else {
-          desktopVid.currentTime = time;
-        }
-      } catch {}
-    }
-
-    const mobileVid = mobileVideoRef.current;
-    if (mobileVid) {
-      try {
-        if ("fastSeek" in mobileVid && typeof (mobileVid as any).fastSeek === "function") {
-          (mobileVid as any).fastSeek(time);
-        } else {
-          mobileVid.currentTime = time;
-        }
-      } catch {}
-    }
-
-    setVideoCurrentTime(time);
-  }, []);
+  }, [activeImages]);
 
   // =========================================================================
-  // 1. DESENHO NO CANVAS (QUANDO MODO CANVAS ESTIVER ATIVO EM IMAGENS)
+  // 1. DESENHO NO CANVAS (QUANDO MODO CANVAS ESTIVER ATIVO)
   // =========================================================================
   const drawFrame = useCallback(
     (imageIndex: number) => {
-      if (renderMode !== "canvas" || isVideoMode) return;
+      if (renderMode !== "canvas") return;
 
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -263,16 +188,17 @@ export default function ScrollSequence({
         offsetY = (canvas.height - drawHeight) / 2;
       } else {
         drawWidth = canvas.height * imgRatio;
+        offsetY = 0;
         offsetX = (canvas.width - drawWidth) / 2;
       }
 
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     },
-    [renderMode, isVideoMode]
+    [renderMode]
   );
 
   // =========================================================================
-  // 2. MONITORAMENTO DE SCROLL (SUPORTA TANTO VÍDEO QUANTO SEQUÊNCIA DE IMAGENS)
+  // 2. MONITORAMENTO DE SCROLL
   // =========================================================================
   useEffect(() => {
     const container =
@@ -294,83 +220,8 @@ export default function ScrollSequence({
       }
 
       const progress = maxScroll > 0 ? scrollY / maxScroll : 0;
-      setScrollProgress(progress);
 
-      // =====================================================================
-      // COMPORTAMENTO PARA MODO VÍDEO
-      // =====================================================================
-      if (isVideoMode) {
-        if (scrollY <= 0) {
-          if (currentStepRef.current !== 0) {
-            currentStepRef.current = 0;
-            targetTimeRef.current = 0;
-            if (!videoRafIdRef.current) {
-              videoRafIdRef.current = requestAnimationFrame(applyVideoTime);
-            }
-            setIsAtStart(true);
-            setIsAtEnd(false);
-            onProgressRef.current?.(0, 0, 0, { isAtStart: true, isAtEnd: false });
-          }
-        } else if (scrollY <= introThreshold) {
-          // Durante o 1º scroll: dissolve o vidro, mantendo vídeo no início (0.0s)
-          if (currentStepRef.current !== 1) {
-            currentStepRef.current = 1;
-            targetTimeRef.current = 0;
-            if (!videoRafIdRef.current) {
-              videoRafIdRef.current = requestAnimationFrame(applyVideoTime);
-            }
-            setIsAtStart(false);
-            setIsAtEnd(false);
-            onProgressRef.current?.(progress, 1, 0, { isAtStart: false, isAtEnd: false });
-          }
-        } else if (hasEndOverlay && scrollY >= maxScroll - 15) {
-          // No final: mantém o último frame do vídeo e ativa o vidro com CTA
-          if (currentStepRef.current !== 101) {
-            currentStepRef.current = 101;
-            const duration = videoDuration || 1;
-            targetTimeRef.current = duration;
-            if (!videoRafIdRef.current) {
-              videoRafIdRef.current = requestAnimationFrame(applyVideoTime);
-            }
-            setIsAtStart(false);
-            setIsAtEnd(true);
-            onProgressRef.current?.(progress, 101, Math.floor(duration), {
-              isAtStart: false,
-              isAtEnd: true,
-            });
-          }
-        } else {
-          // Do 2º scroll até o penúltimo: scrub do vídeo de 0 até duration
-          const videoScroll = scrollY - introThreshold;
-          const videoMaxScroll = Math.max(maxScroll - introThreshold - outroThreshold, 1);
-          const videoProgress = Math.min(Math.max(videoScroll / videoMaxScroll, 0), 1);
-
-          const duration = videoDuration || 1;
-          const calcTime = Math.min(videoProgress * duration, duration);
-
-          targetTimeRef.current = calcTime;
-          if (!videoRafIdRef.current) {
-            videoRafIdRef.current = requestAnimationFrame(applyVideoTime);
-          }
-
-          const step = Math.min(Math.floor(videoProgress * 100) + 2, 100);
-          if (step !== currentStepRef.current) {
-            currentStepRef.current = step;
-            setIsAtStart(false);
-            setIsAtEnd(false);
-            onProgressRef.current?.(progress, step, Math.floor(calcTime), {
-              isAtStart: false,
-              isAtEnd: false,
-            });
-          }
-        }
-        return;
-      }
-
-      // =====================================================================
-      // COMPORTAMENTO PARA MODO IMAGENS (DEFAULT / FALLBACK)
-      // =====================================================================
-      if (images.length === 0) return;
+      if (activeImages.length === 0) return;
 
       const targetStep = Math.min(
         Math.max(Math.round(scrollY / effectivePixels), 0),
@@ -380,8 +231,8 @@ export default function ScrollSequence({
       const targetImageIndex = duplicateFirstFrame
         ? targetStep === 0
           ? 0
-          : Math.min(targetStep - 1, images.length - 1)
-        : Math.min(targetStep, images.length - 1);
+          : Math.min(targetStep - 1, activeImages.length - 1)
+        : Math.min(targetStep, activeImages.length - 1);
 
       const isStart = targetStep === 0;
       const isEnd = hasEndOverlay ? targetStep >= totalImageSteps : false;
@@ -411,21 +262,18 @@ export default function ScrollSequence({
       }
     };
 
+    // Navegação opcional por teclado (setas cima/baixo)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!container) return;
       const maxScroll = container.scrollHeight - container.clientHeight;
       if (maxScroll <= 0) return;
 
-      const step = isVideoMode
-        ? maxScroll / 20
-        : totalImageSteps >= 1
-        ? maxScroll / totalImageSteps
-        : 105;
+      const step = totalImageSteps >= 1 ? maxScroll / totalImageSteps : 105;
 
-      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      if (e.key === "ArrowDown" || e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
         e.preventDefault();
         container.scrollBy({ top: step, behavior: "smooth" });
-      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft" || e.key === "PageUp") {
         e.preventDefault();
         container.scrollBy({ top: -step, behavior: "smooth" });
       }
@@ -445,44 +293,23 @@ export default function ScrollSequence({
       }
       window.removeEventListener("scroll", handleScroll, { capture: true });
       window.removeEventListener("keydown", handleKeyDown);
-      if (videoRafIdRef.current) {
-        cancelAnimationFrame(videoRafIdRef.current);
-      }
     };
   }, [
     scrollContainerRef,
-    isVideoMode,
-    videoDuration,
-    images.length,
+    activeImages.length,
     totalImageSteps,
     effectivePixels,
     duplicateFirstFrame,
     hasEndOverlay,
-    introThreshold,
-    outroThreshold,
     renderMode,
     drawFrame,
-    applyVideoTime,
   ]);
-
-  // Formatação de segundos em mm:ss
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-  };
 
   // Progresso em porcentagem (0 a 100) para a barra progressiva
   const progressPercent = useMemo(() => {
-    if (isVideoMode) {
-      if (videoDuration <= 0) {
-        return Math.min(Math.max(scrollProgress * 100, 0), 100);
-      }
-      return Math.min(Math.max((videoCurrentTime / videoDuration) * 100, 0), 100);
-    }
-    if (images.length <= 1) return 100;
-    return Math.min(Math.max((activeImageIndex / (images.length - 1)) * 100, 0), 100);
-  }, [isVideoMode, videoDuration, videoCurrentTime, scrollProgress, images.length, activeImageIndex]);
+    if (activeImages.length <= 1) return 100;
+    return Math.min(Math.max((activeImageIndex / (activeImages.length - 1)) * 100, 0), 100);
+  }, [activeImages.length, activeImageIndex]);
 
   return (
     <div
@@ -497,103 +324,52 @@ export default function ScrollSequence({
       */}
       <div className="sticky top-0 w-full h-screen h-[100dvh] overflow-hidden bg-black flex items-center justify-center select-none">
         {/* ========================================================================= */}
-        {/* MODO VÍDEO HÍBRIDO (DESKTOP E MOBILE)                                     */}
+        {/* SEQUÊNCIA DE IMAGENS (CANVAS OU DOM COM TRANSIÇÃO ULTRA SUAVE)            */}
         {/* ========================================================================= */}
-        {isVideoMode ? (
-          <div className="absolute inset-0 w-full h-full z-0">
-            {/* Vídeo Desktop (exibido em telas md e acima) */}
-            {videoDesktopUrl && (
-              <video
-                ref={desktopVideoRef}
-                src={videoDesktopUrl}
-                playsInline
-                muted
-                preload="auto"
-                disablePictureInPicture
-                disableRemotePlayback
-                onLoadedMetadata={handleVideoMetadata}
-                onDurationChange={handleVideoMetadata}
-                onLoadedData={handleVideoMetadata}
-                onCanPlay={handleVideoMetadata}
-                onError={handleVideoError}
-                className={`w-full h-full object-cover object-center pointer-events-none ${
-                  videoMobileUrl ? "hidden md:block" : "block"
+        <div className="absolute inset-0 w-full h-full z-0">
+          {activeImages.map((url, idx) => {
+            const isActive = idx === activeImageIndex;
+            const isPrevious = idx === previousImageIndex;
+
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={url}
+                src={url}
+                alt={`Showroom frame ${idx + 1}`}
+                loading="eager"
+                className={`absolute inset-0 w-full h-full object-cover object-center pointer-events-none ${
+                  isActive
+                    ? "opacity-100 z-10"
+                    : isPrevious
+                    ? "opacity-100 z-5"
+                    : "opacity-0 z-0 pointer-events-none"
                 }`}
               />
-            )}
+            );
+          })}
+        </div>
 
-            {/* Vídeo Mobile (exibido em telas menores que md) */}
-            {videoMobileUrl && (
-              <video
-                ref={mobileVideoRef}
-                src={videoMobileUrl}
-                playsInline
-                muted
-                preload="auto"
-                disablePictureInPicture
-                disableRemotePlayback
-                onLoadedMetadata={handleVideoMetadata}
-                onDurationChange={handleVideoMetadata}
-                onLoadedData={handleVideoMetadata}
-                onCanPlay={handleVideoMetadata}
-                onError={handleVideoError}
-                className={`w-full h-full object-cover object-center pointer-events-none ${
-                  videoDesktopUrl ? "block md:hidden" : "block"
-                }`}
-              />
-            )}
-          </div>
-        ) : (
-          /* ========================================================================= */
-          /* MODO SEQUÊNCIA DE IMAGENS (FALLBACK QUANDO NÃO HOUVER VÍDEO CADASTRADO)    */
-          /* ========================================================================= */
-          <>
-            <div className="absolute inset-0 w-full h-full z-0">
-              {images.map((url, idx) => {
-                const isActive = idx === activeImageIndex;
-                const isPrevious = idx === previousImageIndex;
-
-                return (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={url}
-                    src={url}
-                    alt={`Showroom frame ${idx + 1}`}
-                    loading="eager"
-                    className={`absolute inset-0 w-full h-full object-cover object-center pointer-events-none ${
-                      isActive
-                        ? "opacity-100 z-10"
-                        : isPrevious
-                        ? "opacity-100 z-5"
-                        : "opacity-0 z-0 pointer-events-none"
-                    }`}
-                  />
-                );
-              })}
-            </div>
-
-            {/* MODO CANVAS OPCIONAL */}
-            {renderMode === "canvas" && (
-              <canvas
-                ref={canvasRef}
-                className="relative z-10 w-full h-full object-cover block pointer-events-none"
-              />
-            )}
-          </>
+        {/* MODO CANVAS OPCIONAL */}
+        {renderMode === "canvas" && (
+          <canvas
+            ref={canvasRef}
+            className="relative z-10 w-full h-full object-cover block pointer-events-none"
+          />
         )}
 
         {/* Indicador de progresso com barra progressiva no canto inferior direito */}
         <div
-          className={`absolute bottom-6 right-6 z-30 flex items-center gap-3 px-4 py-2.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white font-sans pointer-events-none shadow-xl select-none transition-opacity duration-500 ${
+          className={`absolute bottom-6 right-6 z-30 flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white font-sans shadow-xl select-none transition-opacity duration-500 ${
             isAtEnd ? "opacity-40" : "opacity-100"
           }`}
         >
-          {images.length === 0 && !isVideoMode ? (
+          {activeImages.length === 0 ? (
             <span className="text-[11px] text-stone-300">Carregando...</span>
           ) : (
             <>
               {/* Barra de progresso */}
-              <div className="w-24 sm:w-32 h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div className="w-20 sm:w-28 h-1.5 bg-white/20 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-white rounded-full transition-all duration-150 ease-out"
                   style={{ width: `${progressPercent}%` }}

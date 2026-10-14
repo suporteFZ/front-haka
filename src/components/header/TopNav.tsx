@@ -52,6 +52,7 @@ export default function TopNav({
             alt="Haka Logo"
             width={logoSize}
             height={logoSize}
+            style={{ height: "auto" }}
             className={`object-contain transition-all duration-500 ease-in-out relative w-6 ${
               isCompactLayout ? "md:w-[34px]" : "md:w-[40px]"
             } h-auto`}

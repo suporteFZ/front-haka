@@ -128,6 +128,7 @@ export default function MobileCart({
                 alt="Logo"
                 width={logoSize}
                 height={logoSize}
+                style={{ height: "auto" }}
                 className="object-contain w-5 h-auto"
               />
             </Link>

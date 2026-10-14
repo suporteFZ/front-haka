@@ -18,8 +18,7 @@ export interface PaginaShowroomData {
   Sequencia_subtitulo?: string;
   Sequencia_thumb?: any;
   Sequencia_imagens?: any[];
-  Sequencia_video_desktop?: any;
-  Sequencia_video_mobile?: any;
+  Sequencia_imagens_mobile?: any[];
   Cta_titulo?: string;
   Cta_descricao?: string;
   Cta_botao_texto?: string;

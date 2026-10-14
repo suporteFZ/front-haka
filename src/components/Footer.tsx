@@ -62,7 +62,13 @@ export default function Footer({ globalData }: FooterProps) {
             {/* Coluna 1: Logo e Descrição */}
             <div className="flex flex-col gap-6 items-start">
               {logoUrl && (
-                <Image src={logoUrl} alt="Haka Logo" width={50} height={50} />
+                <Image
+                  src={logoUrl}
+                  alt="Haka Logo"
+                  width={50}
+                  height={50}
+                  style={{ width: "auto", height: "auto" }}
+                />
               )}
               <p className="text-stone-400 text-sm max-w-xs font-sans leading-relaxed text-left">
                 {Footer.descricao_curta}

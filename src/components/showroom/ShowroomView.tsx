@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getStrapiMedia } from "@/utils/api";
 import { PaginaShowroomData } from "@/data/showroom";
 import ScrollSequence from "@/components/showroom/ScrollSequence";
+import { useLenis } from "lenis/react";
 
 interface ShowroomViewProps {
   data: PaginaShowroomData;
@@ -58,7 +59,7 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
           { id: 3, Titulo: "100%", Subtitulo: "CONSULTORIA DEDICADA" },
         ];
 
-  // 3. Sequência de Imagens da Caminhada (Estável para evitar re-render loops)
+  // 3. Sequência de Imagens da Caminhada (Desktop e Mobile)
   const sequenciaUrls: string[] = useMemo(() => {
     if (!Array.isArray(data.Sequencia_imagens) || data.Sequencia_imagens.length === 0) return [];
     return data.Sequencia_imagens
@@ -66,14 +67,12 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
       .filter((url): url is string => Boolean(url));
   }, [data.Sequencia_imagens]);
 
-  // 3.1. Vídeos para Caminhada Virtual Híbrida (Desktop e Mobile)
-  const videoDesktopUrl = data.Sequencia_video_desktop?.url
-    ? getStrapiMedia(data.Sequencia_video_desktop.url) || data.Sequencia_video_desktop.url
-    : null;
-
-  const videoMobileUrl = data.Sequencia_video_mobile?.url
-    ? getStrapiMedia(data.Sequencia_video_mobile.url) || data.Sequencia_video_mobile.url
-    : null;
+  const sequenciaMobileUrls: string[] = useMemo(() => {
+    if (!Array.isArray(data.Sequencia_imagens_mobile) || data.Sequencia_imagens_mobile.length === 0) return [];
+    return data.Sequencia_imagens_mobile
+      .map((img: any) => getStrapiMedia(img?.url) || img?.url)
+      .filter((url): url is string => Boolean(url));
+  }, [data.Sequencia_imagens_mobile]);
 
   const handleWalkProgress = useCallback(
     (_: number, step: number, __: number, state?: { isAtStart: boolean; isAtEnd: boolean }) => {
@@ -102,6 +101,7 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
     data.Sequencia_thumb?.url
       ? getStrapiMedia(data.Sequencia_thumb.url) || data.Sequencia_thumb.url
       : sequenciaUrls[0] ||
+        sequenciaMobileUrls[0] ||
         "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1800&q=80";
 
   const sequenciaTitulo = data.Sequencia_titulo || "Caminhada Virtual pelo Showroom";
@@ -159,7 +159,9 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
     return rawLink;
   }, [data.Cta_botao_link]);
 
-  // Bloqueio de scroll do body e listener para fechar o modal com ESC
+  const lenis = useLenis();
+
+  // Bloqueio de scroll do body, suspensão do Lenis e listener para fechar o modal com ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -168,17 +170,23 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
     };
 
     if (isWalkModalOpen) {
+      lenis?.stop();
       window.addEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "hidden";
+      setTimeout(() => {
+        modalContainerRef.current?.focus();
+      }, 50);
     } else {
+      lenis?.start();
       document.body.style.overflow = "";
     }
 
     return () => {
+      lenis?.start();
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [isWalkModalOpen]);
+  }, [isWalkModalOpen, lenis]);
 
   return (
     <div className="w-full min-h-screen bg-white text-black">
@@ -365,7 +373,11 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
         <div
           ref={modalContainerRef}
           data-lenis-prevent="true"
-          className="fixed inset-0 z-[100] bg-black overflow-y-auto"
+          data-lenis-prevent-wheel="true"
+          data-lenis-prevent-touch="true"
+          style={{ overscrollBehavior: "contain" }}
+          tabIndex={-1}
+          className="fixed inset-0 z-[100] bg-black overflow-y-auto outline-none"
         >
           {/* Barra Superior Fixa do Modal (Tag removida e Botão Fechar com alto contraste) */}
           <div className="fixed top-0 left-0 right-0 z-50 px-6 py-5 flex items-center justify-end pointer-events-none">
@@ -382,9 +394,14 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
 
           {/* Componente ScrollSequence executando no scroll do modal (Híbrido: Vídeo ou Imagens) */}
           <ScrollSequence
-            images={sequenciaUrls.length > 0 ? sequenciaUrls : [thumbUrl]}
-            videoDesktopUrl={videoDesktopUrl}
-            videoMobileUrl={videoMobileUrl}
+            images={
+              sequenciaUrls.length > 0
+                ? sequenciaUrls
+                : sequenciaMobileUrls.length > 0
+                ? sequenciaMobileUrls
+                : [thumbUrl]
+            }
+            imagesMobile={sequenciaMobileUrls}
             scrollContainerRef={modalContainerRef}
             pixelsPerFrame={105}
             onProgress={handleWalkProgress}

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 async function getShowroomPageData(): Promise<PaginaShowroomData> {
   try {
     const url = getStrapiURL(
-      "/api/pagina-showroom?populate[Hero_imagem_banner]=true&populate[Imersiva_imagem]=true&populate[Imersiva_metricas]=true&populate[Sequencia_thumb]=true&populate[Sequencia_imagens]=true&populate[Sequencia_video_desktop]=true&populate[Sequencia_video_mobile]=true"
+      "/api/pagina-showroom?populate[Hero_imagem_banner]=true&populate[Imersiva_imagem]=true&populate[Imersiva_metricas]=true&populate[Sequencia_thumb]=true&populate[Sequencia_imagens]=true&populate[Sequencia_imagens_mobile]=true"
     );
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) {
@@ -37,6 +37,10 @@ async function getShowroomPageData(): Promise<PaginaShowroomData> {
         Array.isArray(json.data.Sequencia_imagens) && json.data.Sequencia_imagens.length > 0
           ? json.data.Sequencia_imagens
           : FALLBACK_SHOWROOM.Sequencia_imagens,
+      Sequencia_imagens_mobile:
+        Array.isArray(json.data.Sequencia_imagens_mobile) && json.data.Sequencia_imagens_mobile.length > 0
+          ? json.data.Sequencia_imagens_mobile
+          : [],
     };
   } catch (error) {
     console.error("Erro ao buscar dados do Showroom no Strapi:", error);
