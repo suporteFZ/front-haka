@@ -170,9 +170,9 @@ const ScrollSequence = forwardRef<ScrollSequenceRef, ScrollSequenceProps>(
       stepRafRef.current = requestAnimationFrame(stepLoop);
     }, []);
 
-    // Avança 3 fotos passando uma por uma em sequência rápida (~55ms cada)
+    // Avança 5 fotos passando uma por uma em sequência rápida (~55ms cada)
     const advanceFrames = useCallback(
-      (count = 3) => {
+      (count = 5) => {
         const max = activeImages.length - 1;
         if (max <= 0) return;
 
@@ -182,9 +182,9 @@ const ScrollSequence = forwardRef<ScrollSequenceRef, ScrollSequenceProps>(
       [activeImages.length, startStepping]
     );
 
-    // Retrocede 3 fotos passando uma por uma em sequência rápida (~55ms cada)
+    // Retrocede 5 fotos passando uma por uma em sequência rápida (~55ms cada)
     const rewindFrames = useCallback(
-      (count = 3) => {
+      (count = 5) => {
         const max = activeImages.length - 1;
         if (max <= 0) return;
 
@@ -207,8 +207,8 @@ const ScrollSequence = forwardRef<ScrollSequenceRef, ScrollSequenceProps>(
           currentIndexRef.current = 0;
           setCurrentIndex(0);
         },
-        advance: (count = 3) => advanceFrames(count),
-        rewind: (count = 3) => rewindFrames(count),
+        advance: (count = 5) => advanceFrames(count),
+        rewind: (count = 5) => rewindFrames(count),
       }),
       [advanceFrames, rewindFrames]
     );
@@ -259,9 +259,9 @@ const ScrollSequence = forwardRef<ScrollSequenceRef, ScrollSequenceProps>(
       const container = scrollContainerRef.current;
       if (!container) return;
 
-      const framesToPass = 3;
+      const framesToPass = 5;
 
-      // 1. Rodinha do Mouse (Wheel) com debounce para cada clique do scroll avançar 3 fotos
+      // 1. Rodinha do Mouse (Wheel) com debounce para cada clique do scroll avançar 5 fotos
       let lastWheelTime = 0;
       const handleWheel = (e: WheelEvent) => {
         e.preventDefault();
