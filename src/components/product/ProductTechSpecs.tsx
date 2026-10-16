@@ -65,6 +65,10 @@ export default function ProductTechSpecs({ product }: ProductTechSpecsProps) {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
 
+  // Refs e indicador para o seletor em cápsula mobile
+  const mobileTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [mobileIndicator, setMobileIndicator] = useState({ left: 0, width: 0, ready: false });
+
   useEffect(() => {
     const update = () => {
       const activeIdx = availableTabs.findIndex((t) => t.id === activeTab);
@@ -77,6 +81,20 @@ export default function ProductTechSpecs({ product }: ProductTechSpecsProps) {
           return {
             left: el.offsetLeft,
             width: el.offsetWidth,
+            ready: true,
+          };
+        });
+      }
+
+      const mobileEl = mobileTabRefs.current[activeIdx >= 0 ? activeIdx : 0];
+      if (mobileEl) {
+        setMobileIndicator((prev) => {
+          if (prev.left === mobileEl.offsetLeft && prev.width === mobileEl.offsetWidth && prev.ready) {
+            return prev;
+          }
+          return {
+            left: mobileEl.offsetLeft,
+            width: mobileEl.offsetWidth,
             ready: true,
           };
         });
@@ -110,23 +128,42 @@ export default function ProductTechSpecs({ product }: ProductTechSpecsProps) {
           Especificações Técnicas
         </h2>
 
-        {/* Seletor de abas em pílulas compactas se houver mais de uma */}
+        {/* Seletor de abas em cápsula única com fundo preto deslizante */}
         {availableTabs.length > 1 && (
-          <div className="flex items-center gap-2 mb-3.5 overflow-x-auto no-scrollbar py-1">
-            {availableTabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1 rounded-full text-[11px] font-sans transition-all cursor-pointer whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? "bg-black text-white font-medium shadow-xs"
-                    : "bg-white text-[#5D5D5D] hover:text-black border border-[#E5E7EB]"
+          <div className="mb-4">
+            <div className="relative inline-flex items-center p-1 rounded-full bg-white border border-[#E5E7EB] shadow-2xs select-none">
+              {/* Fundo preto que desliza suavemente entre as opções */}
+              <div
+                className={`absolute top-1 bottom-1 left-0 bg-black rounded-full pointer-events-none shadow-xs ${
+                  mobileIndicator.ready
+                    ? "transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                    : ""
                 }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+                style={{
+                  transform: `translateX(${mobileIndicator.left}px)`,
+                  width: `${mobileIndicator.width}px`,
+                  opacity: mobileIndicator.ready ? 1 : 0,
+                }}
+              />
+
+              {availableTabs.map((tab, idx) => (
+                <button
+                  key={tab.id}
+                  ref={(el) => {
+                    mobileTabRefs.current[idx] = el;
+                  }}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`relative z-10 px-3.5 py-1.5 rounded-full text-[12px] font-sans transition-colors duration-200 cursor-pointer whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? "font-medium text-white"
+                      : "text-[#69736B] hover:text-black"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getStrapiMedia } from "@/utils/api";
@@ -20,6 +22,141 @@ interface ProjectsCallProps {
     projetos?: ProjetoItem[];
   } | null;
   featuredProjects?: ProjetoItem[];
+}
+
+// Utilitário para decompor string em prefixo, número e sufixo (ex: "98%", "50k+", "+120")
+function parseMetricValue(raw: string) {
+  const match = raw.trim().match(/^([^\d]*)([\d.,]+)([^\d]*)$/);
+  if (!match) return null;
+
+  const prefix = match[1] || "";
+  const numStr = match[2] || "0";
+  const suffix = match[3] || "";
+
+  const hasComma = numStr.includes(",");
+  const hasDot = numStr.includes(".");
+  let targetNumber = 0;
+  let decimals = 0;
+
+  if (hasComma && !hasDot) {
+    const parts = numStr.split(",");
+    decimals = parts[1]?.length || 0;
+    targetNumber = parseFloat(numStr.replace(",", "."));
+  } else if (hasDot && !hasComma) {
+    const parts = numStr.split(".");
+    if (parts[1]?.length === 3 && parts[0].length <= 3) {
+      targetNumber = parseInt(numStr.replace(".", ""), 10);
+      decimals = 0;
+    } else {
+      decimals = parts[1]?.length || 0;
+      targetNumber = parseFloat(numStr);
+    }
+  } else {
+    targetNumber = parseFloat(numStr.replace(/[.,]/g, ""));
+    decimals = 0;
+  }
+
+  if (isNaN(targetNumber)) return null;
+
+  return {
+    prefix,
+    targetNumber,
+    decimals,
+    suffix,
+    hasComma,
+  };
+}
+
+// Contador numérico suave acionado por IntersectionObserver
+function AnimatedMetric({ value }: { value: string }) {
+  const [displayValue, setDisplayValue] = useState<string>(value);
+  const containerRef = useRef<HTMLSpanElement>(null);
+  const hasAnimatedRef = useRef(false);
+
+  useEffect(() => {
+    const parsed = parseMetricValue(value);
+    if (!parsed) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const { prefix, targetNumber, decimals, suffix, hasComma } = parsed;
+
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      return;
+    }
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    let animFrameId: number;
+
+    const startAnimation = () => {
+      if (hasAnimatedRef.current) return;
+      hasAnimatedRef.current = true;
+      const duration = 2000; // 2 segundos de animação
+      const startTime = performance.now();
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        // Easing easeOutExpo para desaceleração orgânica suave
+        const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        const currentNum = targetNumber * ease;
+
+        let formatted = decimals > 0 
+          ? currentNum.toFixed(decimals) 
+          : Math.round(currentNum).toString();
+        if (hasComma) formatted = formatted.replace(".", ",");
+
+        setDisplayValue(`${prefix}${formatted}${suffix}`);
+
+        if (progress < 1) {
+          animFrameId = requestAnimationFrame(animate);
+        } else {
+          let finalNum = decimals > 0 
+            ? targetNumber.toFixed(decimals) 
+            : Math.round(targetNumber).toString();
+          if (hasComma) finalNum = finalNum.replace(".", ",");
+          setDisplayValue(`${prefix}${finalNum}${suffix}`);
+        }
+      };
+
+      animFrameId = requestAnimationFrame(animate);
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && !hasAnimatedRef.current) {
+          startAnimation();
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    // Verifica se já está na tela ao montar
+    const rect = el.getBoundingClientRect();
+    const isVisibleNow = rect.top < window.innerHeight && rect.bottom > 0;
+
+    if (isVisibleNow) {
+      startAnimation();
+    } else {
+      // Se estiver fora da tela, inicia do zero para animar quando o usuário rolar
+      let zeroFormatted = decimals > 0 ? (0).toFixed(decimals) : "0";
+      if (hasComma) zeroFormatted = zeroFormatted.replace(".", ",");
+      setDisplayValue(`${prefix}${zeroFormatted}${suffix}`);
+      observer.observe(el);
+    }
+
+    return () => {
+      observer.disconnect();
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+    };
+  }, [value]);
+
+  return <span ref={containerRef}>{displayValue}</span>;
 }
 
 export default function ProjectsCall({ data, featuredProjects }: ProjectsCallProps) {
@@ -62,6 +199,9 @@ export default function ProjectsCall({ data, featuredProjects }: ProjectsCallPro
     }
   }
 
+  // Limita estritamente aos 2 últimos projetos postados
+  const displayProjects = projects.slice(0, 2);
+
   return (
     <section className="w-full bg-white py-16 md:py-24 px-[17px] md:px-8 flex items-center justify-center border-t border-[#EDEDED]">
       <div className="w-full max-w-[1600px] mx-auto">
@@ -76,11 +216,11 @@ export default function ProjectsCall({ data, featuredProjects }: ProjectsCallPro
               {description}
             </p>
 
-            {/* Métricas */}
+            {/* Métricas com Contagem Animada */}
             <div className="flex items-center gap-10 md:gap-14 mt-8 md:mt-10 mb-8 md:mb-10">
               <div className="flex flex-col">
-                <span className="text-[36px] md:text-[42px] font-sans font-bold text-black leading-none tracking-tight">
-                  {metric1Val}
+                <span className="text-[36px] md:text-[42px] font-sans font-bold text-black leading-none tracking-tight tabular-nums">
+                  <AnimatedMetric value={metric1Val} />
                 </span>
                 <span className="text-[11px] md:text-[12px] font-sans text-[#777777] mt-1.5 leading-tight">
                   {metric1Label}
@@ -88,8 +228,8 @@ export default function ProjectsCall({ data, featuredProjects }: ProjectsCallPro
               </div>
 
               <div className="flex flex-col">
-                <span className="text-[36px] md:text-[42px] font-sans font-bold text-black leading-none tracking-tight">
-                  {metric2Val}
+                <span className="text-[36px] md:text-[42px] font-sans font-bold text-black leading-none tracking-tight tabular-nums">
+                  <AnimatedMetric value={metric2Val} />
                 </span>
                 <span className="text-[11px] md:text-[12px] font-sans text-[#777777] mt-1.5 leading-tight">
                   {metric2Label}
@@ -114,7 +254,7 @@ export default function ProjectsCall({ data, featuredProjects }: ProjectsCallPro
           {/* Coluna Direita: Cards de Projetos */}
           <div className="lg:col-span-7 w-full">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 md:gap-6">
-              {projects.map((project) => {
+              {displayProjects.map((project) => {
                 const coverUrl =
                   getStrapiMedia(project.Imagem_capa?.url) ||
                   project.Imagem_capa?.url ||

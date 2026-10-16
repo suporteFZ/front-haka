@@ -57,27 +57,27 @@ async function getCatalogProducts() {
 // Buscar projetos marcados com "Destaque_home: true" (ou primeiros projetos do Strapi)
 async function getFeaturedProjects(): Promise<ProjetoItem[]> {
   try {
-    // 1. Tenta buscar projetos com Destaque_home = true
+    // 1. Tenta buscar os 2 últimos projetos marcados com Destaque_home = true
     const url = getStrapiURL(
-      "/api/projetos?filters[Destaque_home][$eq]=true&populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=Ordem:asc&sort[1]=createdAt:desc"
+      "/api/projetos?filters[Destaque_home][$eq]=true&populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=createdAt:desc&pagination[pageSize]=2"
     );
     const res = await fetch(url, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-        return json.data;
+        return json.data.slice(0, 2);
       }
     }
 
-    // 2. Se nenhum estiver marcado como destaque, busca os primeiros projetos cadastrados
+    // 2. Se nenhum estiver marcado como destaque, busca os 2 últimos projetos postados
     const fallbackUrl = getStrapiURL(
-      "/api/projetos?populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=Ordem:asc&sort[1]=createdAt:desc&pagination[pageSize]=2"
+      "/api/projetos?populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=createdAt:desc&pagination[pageSize]=2"
     );
     const fallbackRes = await fetch(fallbackUrl, { cache: "no-store" });
     if (fallbackRes.ok) {
       const fallbackJson = await fallbackRes.json();
       if (fallbackJson?.data && Array.isArray(fallbackJson.data) && fallbackJson.data.length > 0) {
-        return fallbackJson.data;
+        return fallbackJson.data.slice(0, 2);
       }
     }
 

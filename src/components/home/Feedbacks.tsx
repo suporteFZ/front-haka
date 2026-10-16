@@ -68,7 +68,8 @@ export default function Feedbacks({ data }: { data: any }) {
             {/* Setas e Paginação */}
             <button 
               id="feedback-prev"
-              className="absolute left-0 top-[40%] -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-500 hover:text-black z-20"
+              type="button"
+              className="absolute left-0 top-[40%] -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-all text-gray-500 hover:text-black cursor-pointer z-20 active:scale-95"
               aria-label="Anterior"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -76,7 +77,8 @@ export default function Feedbacks({ data }: { data: any }) {
             
             <button 
               id="feedback-next"
-              className="absolute right-0 top-[40%] -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-500 hover:text-black z-20"
+              type="button"
+              className="absolute right-0 top-[40%] -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-all text-gray-500 hover:text-black cursor-pointer z-20 active:scale-95"
               aria-label="Próximo"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -120,6 +122,7 @@ export default function Feedbacks({ data }: { data: any }) {
           height: 6px;
           background-color: #D1D5DB;
           opacity: 1;
+          cursor: pointer;
         }
         .custom-pagination .swiper-pagination-bullet-active {
           background-color: #000000;

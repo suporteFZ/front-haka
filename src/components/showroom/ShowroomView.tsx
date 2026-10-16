@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getStrapiMedia } from "@/utils/api";
 import { PaginaShowroomData } from "@/data/showroom";
-import ScrollSequence from "@/components/showroom/ScrollSequence";
+import ScrollSequence, { ScrollSequenceRef } from "@/components/showroom/ScrollSequence";
 import { useLenis } from "lenis/react";
 
 interface ShowroomViewProps {
@@ -17,7 +17,9 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
   const [isWalkModalOpen, setIsWalkModalOpen] = useState(false);
   const [walkFrameIndex, setWalkFrameIndex] = useState(0);
   const [isWalkAtEnd, setIsWalkAtEnd] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const modalContainerRef = useRef<HTMLDivElement>(null);
+  const scrollSequenceRef = useRef<ScrollSequenceRef>(null);
 
   // 1. Hero Data & Proporção Fiel do Admin
   const heroTag = data.Hero_tag ?? "PORTFÓLIO HAKA";
@@ -75,8 +77,8 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
   }, [data.Sequencia_imagens_mobile]);
 
   const handleWalkProgress = useCallback(
-    (_: number, step: number, __: number, state?: { isAtStart: boolean; isAtEnd: boolean }) => {
-      setWalkFrameIndex(step);
+    (_: number, floatIdx: number, state?: { isAtStart: boolean; isAtEnd: boolean }) => {
+      setWalkFrameIndex(Math.round(floatIdx));
       if (state) {
         setIsWalkAtEnd(state.isAtEnd);
       }
@@ -87,14 +89,26 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
   const openWalkModal = useCallback(() => {
     setWalkFrameIndex(0);
     setIsWalkAtEnd(false);
+    setIsPlaying(false);
     setIsWalkModalOpen(true);
   }, []);
 
   const handleRestartWalk = useCallback(() => {
-    if (modalContainerRef.current) {
-      modalContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    setIsPlaying(false);
+    scrollSequenceRef.current?.scrollToTop();
   }, []);
+
+  const toggleAutoPlay = useCallback(() => {
+    if (!isPlaying && isWalkAtEnd) {
+      scrollSequenceRef.current?.scrollToTop();
+      setTimeout(() => {
+        setIsPlaying(true);
+      }, 150);
+      return;
+    }
+
+    setIsPlaying((prev) => !prev);
+  }, [isPlaying, isWalkAtEnd]);
 
   // Thumb do banner da sequência
   const thumbUrl =
@@ -177,6 +191,7 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
         modalContainerRef.current?.focus();
       }, 50);
     } else {
+      setIsPlaying(false);
       lenis?.start();
       document.body.style.overflow = "";
     }
@@ -372,15 +387,25 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
       {isWalkModalOpen && (
         <div
           ref={modalContainerRef}
-          data-lenis-prevent="true"
-          data-lenis-prevent-wheel="true"
-          data-lenis-prevent-touch="true"
-          style={{ overscrollBehavior: "contain" }}
           tabIndex={-1}
-          className="fixed inset-0 z-[100] bg-black overflow-y-auto outline-none"
+          className="fixed inset-0 z-[100] bg-black overflow-hidden outline-none select-none"
         >
-          {/* Barra Superior Fixa do Modal (Tag removida e Botão Fechar com alto contraste) */}
-          <div className="fixed top-0 left-0 right-0 z-50 px-6 py-5 flex items-center justify-end pointer-events-none">
+          {/* Barra Superior Fixa do Modal (Play/Pause e Botão Fechar) */}
+          <div className="fixed top-0 left-0 right-0 z-50 px-5 sm:px-8 py-5 flex items-center justify-between pointer-events-none">
+            {/* Botão Play / Pause da caminhada */}
+            <button
+              type="button"
+              onClick={toggleAutoPlay}
+              aria-label={isPlaying ? "Pausar caminhada automática" : "Iniciar caminhada automática"}
+              className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-black/85 hover:bg-black text-white border border-white/20 shadow-2xl backdrop-blur-md text-xs font-sans font-medium tracking-wide transition-all duration-200 active:scale-95 pointer-events-auto cursor-pointer"
+            >
+              <span className="text-xs sm:text-sm font-bold leading-none text-white">
+                {isPlaying ? "⏸" : "▶"}
+              </span>
+              <span>{isPlaying ? "Pausar" : "Caminhar Automaticamente"}</span>
+            </button>
+
+            {/* Botão Fechar */}
             <button
               type="button"
               onClick={() => setIsWalkModalOpen(false)}
@@ -392,8 +417,9 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
             </button>
           </div>
 
-          {/* Componente ScrollSequence executando no scroll do modal (Híbrido: Vídeo ou Imagens) */}
+          {/* Componente ScrollSequence executando no scroll com Lenis dedicado e dissolução contínua */}
           <ScrollSequence
+            ref={scrollSequenceRef}
             images={
               sequenciaUrls.length > 0
                 ? sequenciaUrls
@@ -403,67 +429,72 @@ export default function ShowroomView({ data }: ShowroomViewProps) {
             }
             imagesMobile={sequenciaMobileUrls}
             scrollContainerRef={modalContainerRef}
-            pixelsPerFrame={105}
+            isPlaying={isPlaying}
+            onPlayChange={setIsPlaying}
             onProgress={handleWalkProgress}
-          >
-            {/* 1. Efeito de vidro em tela cheia na primeira tela (Intro) */}
-            <div
-              className={`absolute inset-0 w-full h-full bg-black/50 backdrop-blur-md flex flex-col items-center justify-center p-6 sm:p-10 text-center pointer-events-none transition-all duration-700 ease-out ${
-                walkFrameIndex > 0 ? "opacity-0 invisible" : "opacity-100 visible"
-              }`}
-            >
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-stone-200 text-[11px] font-sans font-medium uppercase tracking-[0.2em] mb-4 shadow-sm">
-                <span>Role o scroll para caminhar</span>
-              </div>
+            introContent={
+              <>
+                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-stone-200 text-[11px] font-sans font-medium uppercase tracking-[0.2em] mb-4 shadow-sm">
+                  <span>Role o scroll para caminhar</span>
+                </div>
 
-              <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-medium text-white tracking-tight leading-tight max-w-3xl drop-shadow-md">
-                {sequenciaTitulo}
-              </h3>
+                <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-medium text-white tracking-tight leading-tight max-w-3xl drop-shadow-md">
+                  {sequenciaTitulo}
+                </h3>
 
-              <p className="text-xs sm:text-sm md:text-base font-sans text-stone-200/90 mt-4 max-w-xl mx-auto leading-relaxed drop-shadow-sm">
-                {sequenciaSubtitulo}
-              </p>
-            </div>
+                <p className="text-xs sm:text-sm md:text-base font-sans text-stone-200/90 mt-4 max-w-xl mx-auto leading-relaxed drop-shadow-sm">
+                  {sequenciaSubtitulo}
+                </p>
 
-            {/* 2. Efeito de vidro em tela cheia no final da caminhada (Outro / Conclusão) */}
-            <div
-              className={`absolute inset-0 w-full h-full bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-6 sm:p-10 text-center transition-all duration-700 ease-out ${
-                isWalkAtEnd ? "opacity-100 visible pointer-events-auto" : "opacity-0 invisible pointer-events-none"
-              }`}
-            >
-              <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-stone-200 text-[11px] font-sans font-medium uppercase tracking-[0.2em] mb-4 sm:mb-5 shadow-sm">
-                <span>Fim do Caminho Virtual</span>
-              </div>
+                {/* Botão para iniciar caminhada automática direto da intro */}
+                <div className="mt-7 flex flex-col sm:flex-row items-center gap-3 pointer-events-auto">
+                  <button
+                    type="button"
+                    onClick={toggleAutoPlay}
+                    className="inline-flex items-center justify-center gap-2.5 px-7 py-3 rounded-full bg-white text-black font-sans font-semibold text-xs sm:text-sm tracking-wide hover:bg-stone-100 transition-all duration-200 active:scale-95 shadow-2xl cursor-pointer"
+                  >
+                    <span className="text-xs sm:text-sm">▶</span>
+                    <span>Iniciar Caminhada Automática</span>
+                  </button>
+                </div>
+              </>
+            }
+            outroContent={
+              <>
+                <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-stone-200 text-[11px] font-sans font-medium uppercase tracking-[0.2em] mb-4 sm:mb-5 shadow-sm">
+                  <span>Fim do Caminho Virtual</span>
+                </div>
 
-              <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-medium text-white tracking-tight leading-tight max-w-3xl drop-shadow-md">
-                Chegou ao final do caminho virtual
-              </h3>
+                <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-medium text-white tracking-tight leading-tight max-w-3xl drop-shadow-md">
+                  Chegou ao final do caminho virtual
+                </h3>
 
-              <p className="text-xs sm:text-sm md:text-base font-sans text-stone-200/90 mt-4 mb-8 sm:mb-9 max-w-xl mx-auto leading-relaxed drop-shadow-sm">
-                Se quiser marcar uma visita pessoalmente, estamos à disposição. Venha vivenciar nossos ambientes integrados e testar de perto nossas soluções ergonômicas.
-              </p>
+                <p className="text-xs sm:text-sm md:text-base font-sans text-stone-200/90 mt-4 mb-8 sm:mb-9 max-w-xl mx-auto leading-relaxed drop-shadow-sm">
+                  Se quiser marcar uma visita pessoalmente, estamos à disposição. Venha vivenciar nossos ambientes integrados e testar de perto nossas soluções ergonômicas.
+                </p>
 
-              <div className="flex flex-col sm:flex-row items-center gap-3.5 pointer-events-auto">
-                <Link
-                  href={agendarVisitaLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full bg-white text-black font-sans font-semibold text-[13px] sm:text-[14px] tracking-wide hover:bg-stone-100 transition-all duration-200 active:scale-95 shadow-2xl cursor-pointer"
-                >
-                  <span>Marcar Visita Pessoalmente</span>
-                  <span className="text-base leading-none">→</span>
-                </Link>
+                <div className="flex flex-col sm:flex-row items-center gap-3.5 pointer-events-auto">
+                  <Link
+                    href={agendarVisitaLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full bg-white text-black font-sans font-semibold text-[13px] sm:text-[14px] tracking-wide hover:bg-stone-100 transition-all duration-200 active:scale-95 shadow-2xl cursor-pointer"
+                  >
+                    <span>Marcar Visita Pessoalmente</span>
+                    <span className="text-base leading-none">→</span>
+                  </Link>
 
-                <button
-                  type="button"
-                  onClick={handleRestartWalk}
-                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/25 font-sans font-medium text-[12px] sm:text-[13px] tracking-wide transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-sm"
-                >
-                  <span>↺ Rever Caminhada</span>
-                </button>
-              </div>
-            </div>
-          </ScrollSequence>
+                  <button
+                    type="button"
+                    onClick={handleRestartWalk}
+                    className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/25 font-sans font-medium text-[12px] sm:text-[13px] tracking-wide transition-all duration-200 active:scale-95 cursor-pointer backdrop-blur-sm"
+                  >
+                    <span>↺ Rever Caminhada</span>
+                  </button>
+                </div>
+              </>
+            }
+          />
         </div>
       )}
     </div>

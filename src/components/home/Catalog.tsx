@@ -99,9 +99,11 @@ export default function Catalog({
       if (!sectionRef.current) return;
       const rect = sectionRef.current.getBoundingClientRect();
       const windowHeight = window.innerHeight;
+      const headerHeight = headerRef.current?.offsetHeight || 180;
 
       // Ativa quando a seção do catálogo alcança o topo da tela
-      const isActive = rect.top <= 140 && rect.bottom >= 40;
+      // e desativa quando o final da seção se aproxima do cabeçalho
+      const isActive = rect.top <= 140 && rect.bottom >= headerHeight + 60;
       setIsSectionActive(isActive);
 
       // Quando o fim da seção cinza entra na janela, o botão ancora no fundo da seção (absolute)
@@ -307,7 +309,7 @@ export default function Catalog({
             isPinnedToBottom
               ? "absolute bottom-6 md:bottom-8"
               : "fixed bottom-6 md:bottom-8"
-          } left-1/2 -translate-x-1/2 z-40 transition-opacity duration-300 ${
+          } left-1/2 -translate-x-1/2 z-20 transition-opacity duration-300 ${
             isSectionActive
               ? "opacity-100 pointer-events-auto"
               : "opacity-0 pointer-events-none"

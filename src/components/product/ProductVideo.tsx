@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
-import { useLenis } from "lenis/react";
+import React, { useRef, useState } from "react";
 import { getStrapiMedia } from "@/utils/api";
 
 interface ProductVideoProps {
@@ -74,37 +73,6 @@ export default function ProductVideo({ product }: ProductVideoProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [showControls, setShowControls] = useState(true);
 
-  // Estados para controle de suavidade da rolagem com vídeos incorporados (YouTube / Vimeo)
-  const [hasPlayed, setHasPlayed] = useState(false);
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Desativa pointer-events no iframe temporariamente enquanto o Lenis rola a página
-  useLenis(() => {
-    setIsScrolling(true);
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      setIsScrolling(false);
-    }, 200);
-  });
-
-  // Fallback para eventos de rolagem nativa
-  useEffect(() => {
-    const handleNativeScroll = () => {
-      setIsScrolling(true);
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      scrollTimeoutRef.current = setTimeout(() => {
-        setIsScrolling(false);
-      }, 200);
-    };
-
-    window.addEventListener("scroll", handleNativeScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleNativeScroll);
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    };
-  }, []);
-
   if (!product) return null;
 
   const videoFileUrl = getStrapiMedia(product.Video_arquivo?.url);
@@ -123,29 +91,18 @@ export default function ProductVideo({ product }: ProductVideoProps) {
   if (videoSource.type === "youtube" || videoSource.type === "vimeo") {
     const embedUrl = videoSource.embedUrl;
     const separator = embedUrl.includes("?") ? "&" : "?";
-    const finalEmbedUrl = hasPlayed ? `${embedUrl}${separator}autoplay=1` : embedUrl;
+    const finalEmbedUrl = `${embedUrl}${separator}enablejsapi=1&rel=0`;
 
     return (
       <section className="w-full mt-16 md:mt-24 px-4 sm:px-6 md:px-0">
-        <div className="relative w-full aspect-video rounded-[20px] md:rounded-[26px] overflow-hidden bg-black shadow-lg group">
+        <div className="relative w-full max-w-[1080px] mx-auto aspect-video rounded-[20px] md:rounded-[26px] overflow-hidden bg-black shadow-lg">
           <iframe
             src={finalEmbedUrl}
             title={product.Nome || "Vídeo Institucional do Produto"}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
-            className={`w-full h-full border-0 transition-opacity duration-300 ${
-              isScrolling ? "pointer-events-none" : "pointer-events-auto"
-            }`}
+            className="w-full h-full border-0 pointer-events-auto"
           />
-
-          {/* Overlay inteligente: absorve eventos de mouse wheel enquanto não reproduzido, garantindo 100% de suavidade no Lenis */}
-          {!hasPlayed && (
-            <div
-              onClick={() => setHasPlayed(true)}
-              className="absolute inset-0 z-10 cursor-pointer bg-transparent"
-              title="Clique para reproduzir o vídeo"
-            />
-          )}
         </div>
       </section>
     );
@@ -209,7 +166,7 @@ export default function ProductVideo({ product }: ProductVideoProps) {
   return (
     <section className="w-full mt-16 md:mt-24 px-4 sm:px-6 md:px-0">
       <div
-        className="relative w-full aspect-[4/3] sm:aspect-[16/9] md:aspect-[21/9] lg:aspect-[16/9] rounded-[20px] md:rounded-[26px] overflow-hidden bg-black shadow-lg group cursor-pointer"
+        className="relative w-full max-w-[1080px] mx-auto aspect-video rounded-[20px] md:rounded-[26px] overflow-hidden bg-black shadow-lg group cursor-pointer"
         onClick={togglePlay}
         onMouseEnter={() => setShowControls(true)}
       >
