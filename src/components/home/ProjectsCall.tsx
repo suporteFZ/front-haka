@@ -184,19 +184,9 @@ export default function ProjectsCall({ data, featuredProjects }: ProjectsCallPro
 
   const projects: ProjetoItem[] = [...strapiProjects];
 
-  // Se houver menos de 2 projetos no Strapi, complementa com fallbacks sem duplicar cliente ou slug
-  if (projects.length < 2) {
-    const existingSlugs = new Set(projects.map((p) => p.slug));
-    const existingClients = new Set(
-      projects.map((p) => p.Cliente?.toLowerCase().trim()).filter(Boolean)
-    );
-    for (const fallback of FALLBACK_PROJECTS) {
-      const fallbackClient = fallback.Cliente?.toLowerCase().trim();
-      if (!existingSlugs.has(fallback.slug) && !existingClients.has(fallbackClient)) {
-        projects.push(fallback);
-        if (projects.length >= 2) break;
-      }
-    }
+  // Apenas se não houver NENHUM projeto no Strapi, usa os fallbacks como demonstração
+  if (projects.length === 0) {
+    projects.push(...FALLBACK_PROJECTS);
   }
 
   // Limita estritamente aos 2 últimos projetos postados
