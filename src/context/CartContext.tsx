@@ -8,6 +8,7 @@ export interface CartItem {
   name: string;
   slug: string;
   variationName: string;
+  options?: string[];
   warrantyName?: string;
   price: number;
   isQuoteOnly: boolean;

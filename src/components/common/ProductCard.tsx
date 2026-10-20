@@ -25,6 +25,15 @@ export interface ProductCardItem {
     Galeria?: any[];
     Miniatura?: any;
   }>;
+  Grupos_variacao?: Array<{
+    Titulo?: string;
+    Opcoes?: Array<{
+      Nome?: string;
+      Foto?: any;
+      Preco_adicional?: number;
+      Foto_destaque?: any;
+    }>;
+  }>;
   Imagem_destaque?: any;
   Foto_mais_vendidos?: any;
 }
@@ -32,16 +41,17 @@ export interface ProductCardItem {
 export default function ProductCard({ product }: { product: ProductCardItem }) {
   const [isHovered, setIsHovered] = useState(false);
 
-  // Lógica de imagens exclusiva das variações (não utiliza Imagem_destaque pois é exclusiva do mega menu):
-  // 1ª Foto (padrão): Miniatura da primeira variação, ou 1ª foto da sua galeria
-  // 2ª Foto (hover): Próxima foto da galeria da primeira variação
+  // Lógica de imagens (variações tradicionais ou grupos modulares estilo Cavaletti):
   const firstVariation = product.Variacoes?.[0];
   const miniatura = firstVariation?.Miniatura;
   const galeria = firstVariation?.Galeria || [];
+  const firstGroupOpt = product.Grupos_variacao?.[0]?.Opcoes?.[0];
 
   const img1 =
     miniatura ||
     galeria[0] ||
+    firstGroupOpt?.Foto_destaque ||
+    firstGroupOpt?.Foto ||
     product.Foto_mais_vendidos ||
     product.Imagem_destaque ||
     null;
@@ -58,6 +68,9 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
   } else if (galeria.length > 1) {
     // Se não tem miniatura, a 1ª foto foi galeria[0], então a 2ª foto do hover é galeria[1]
     img2 = galeria[1] || null;
+  } else if (product.Grupos_variacao?.[0]?.Opcoes && product.Grupos_variacao[0].Opcoes.length > 1) {
+    const secondOpt = product.Grupos_variacao[0].Opcoes[1];
+    img2 = secondOpt.Foto_destaque || secondOpt.Foto || null;
   }
 
   // Evita duplicar a mesma foto no hover caso sejam idênticas

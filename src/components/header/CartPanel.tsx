@@ -5,18 +5,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 
+import { buildCartWhatsAppMessage, formatBRL } from "@/utils/cartWhatsApp";
+
 interface CartPanelProps {
   isCartOpen: boolean;
   onClose: () => void;
   whatsappNumber?: string;
-}
-
-// Formatar moeda brasileira BRL
-function formatBRL(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
 }
 
 export default function CartPanel({ isCartOpen, onClose, whatsappNumber }: CartPanelProps) {
@@ -27,55 +21,13 @@ export default function CartPanel({ isCartOpen, onClose, whatsappNumber }: CartP
 
     const origin = process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== "undefined" ? window.location.origin : "");
 
-    // Formatação detalhada e profissional de cada produto sem emojis
-    const itemsFormatted = items
-      .map((item) => {
-        const lines = [`*${item.quantity}x ${item.name}*`];
-        if (item.variationName && item.variationName !== "default" && item.variationName !== "Padrão") {
-          lines.push(`• Cor: ${item.variationName}`);
-        }
-        if (item.warrantyName && item.warrantyName !== "Garantia padrão") {
-          lines.push(`• Garantia: ${item.warrantyName}`);
-        }
-        lines.push(`• Valor: ${item.isQuoteOnly ? "Sob consulta" : formatBRL(item.price * item.quantity)}`);
-        if (item.slug) {
-          lines.push(`• Link: ${origin}/produto/${item.slug}`);
-        }
-        return lines.join("\n");
-      })
-      .join("\n\n");
-
-    let totalSection = "";
-    if (hasQuoteOnlyItems) {
-      if (totalPrice > 0) {
-        totalSection = `• *Valor total parcial:* ${formatBRL(totalPrice)} (+ itens sob consulta)`;
-      } else {
-        totalSection = `• *Valor total:* Sob consulta`;
-      }
-    } else {
-      totalSection = `• *Valor total:* ${formatBRL(totalPrice)}`;
-    }
-
-    const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-
-    const fullMsg = [
-      `*Novo Pedido - Haka*`,
-      ``,
-      `Olá! Gostaria de finalizar meu pedido:`,
-      ``,
-      `*Itens no Carrinho:*`,
-      itemsFormatted,
-      ``,
-      `───────────────────`,
-      `*Resumo do Pedido:*`,
-      `• Total de itens: ${totalQuantity}`,
-      totalSection,
-      ``,
-      `Finalizei meu carrinho pelo site e aguardo o atendimento para concluir a compra!`,
-    ].join("\n");
-
-    const rawNumber = (whatsappNumber || "554530550000").replace(/\D/g, "");
-    const finalNumber = rawNumber.length <= 11 ? `55${rawNumber}` : rawNumber;
+    const { fullMsg, finalNumber } = buildCartWhatsAppMessage({
+      items,
+      totalPrice,
+      hasQuoteOnlyItems,
+      whatsappNumber,
+      origin,
+    });
 
     window.open(`https://wa.me/${finalNumber}?text=${encodeURIComponent(fullMsg)}`, "_blank");
   };

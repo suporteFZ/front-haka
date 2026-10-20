@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { getStrapiMedia } from "@/utils/api";
-import { useProduct } from "@/context/ProductContext";
+import { useProduct, VariationGroup, VariationOption, Revestimento, CorRevestimento, OpcaoMedida } from "@/context/ProductContext";
 import { useCart } from "@/context/CartContext";
 
 interface MediaItem {
@@ -17,8 +17,9 @@ interface MediaItem {
 
 interface Variation {
   id?: number;
-  Nome_cor: string;
+  Nome_cor?: string;
   Cor_hex?: string;
+  Tamanho?: string;
   Miniatura?: MediaItem;
   Galeria?: MediaItem[];
   Preco?: number;
@@ -45,7 +46,11 @@ interface ProductHeroProps {
     Estoque?: number;
     Parcelas?: number | null;
     Imagem_destaque?: MediaItem;
+    Galeria?: MediaItem[];
     Variacoes?: Variation[];
+    Opcoes_medida?: OpcaoMedida[];
+    Revestimentos?: Revestimento[];
+    Grupos_variacao?: VariationGroup[];
     garantias?: Warranty[];
     categoria?: {
       Nome: string;
@@ -91,8 +96,78 @@ function formatBRL(value: number): string {
 }
 
 export default function ProductHero({ product }: ProductHeroProps) {
-  const variations = product.Variacoes || [];
   const productCtx = useProduct();
+  const variations = product.Variacoes || [];
+
+  // Revestimentos em 3 Camadas (Material -> Cores com fotos e preços)
+  const hasRevestimentos = productCtx?.hasRevestimentos || (product.Revestimentos && product.Revestimentos.length > 0) || false;
+  const revestimentos: Revestimento[] = productCtx?.revestimentos || product.Revestimentos || [];
+  const selectedRevestimento = productCtx?.selectedRevestimento || (revestimentos.length > 0 ? revestimentos[0] : null);
+  const selectedCorRevestimento = productCtx?.selectedCorRevestimento || (selectedRevestimento?.Cores && selectedRevestimento.Cores.length > 0 ? selectedRevestimento.Cores[0] : null);
+  const selectRevestimentoAndCor = productCtx?.selectRevestimentoAndCor || (() => {});
+
+  // Controle do acordeão principal de Revestimento e Cor (Camada 1)
+  const [isRevestimentoSectionOpen, setIsRevestimentoSectionOpen] = useState(false);
+
+  // Controle dos acordeões dos materiais (Camada 2): se null, todos fechados; se clicar, abre aquele
+  const [openMaterialNome, setOpenMaterialNome] = useState<string | null>(null);
+  const toggleMaterial = (nome: string) => {
+    setOpenMaterialNome((prev) => (prev === nome ? null : nome));
+  };
+
+  const hasVariationGroups = productCtx?.hasVariationGroups || (product.Grupos_variacao && product.Grupos_variacao.length > 0) || false;
+  const variationGroups: VariationGroup[] = productCtx?.variationGroups || product.Grupos_variacao || [];
+  const selectedGroupOptions = productCtx?.selectedGroupOptions || {};
+  const selectGroupOption = productCtx?.selectGroupOption || (() => {});
+  const activeGroupPhotoUrl = productCtx?.activeGroupPhotoUrl || null;
+
+  // Controle do acordeão principal de Componentes e Acessórios (Pai)
+  const [isComponentsSectionOpen, setIsComponentsSectionOpen] = useState(false);
+
+  // Controle dos acordeões dos componentes/acessórios: se null, todos fechados; se clicar, abre aquele
+  const [openGroupTitulo, setOpenGroupTitulo] = useState<string | null>(null);
+  const toggleGroup = (titulo: string) => {
+    setOpenGroupTitulo((prev) => (prev === titulo ? null : titulo));
+  };
+
+  const selectedComponentsSummary = useMemo(() => {
+    if (!variationGroups || variationGroups.length === 0) return "";
+    const parts = variationGroups
+      .map((g) => {
+        const opt = selectedGroupOptions[g.Titulo];
+        return opt ? `${g.Titulo}: ${opt.Nome}` : null;
+      })
+      .filter(Boolean);
+    return parts.join(" • ");
+  }, [variationGroups, selectedGroupOptions]);
+
+  // Opções de Medidas / Dimensões (ex: Mesas 100cm, 120cm, etc.)
+  const hasMedidas = productCtx?.hasMedidas || (product.Opcoes_medida && product.Opcoes_medida.length > 0) || false;
+  const medidas: OpcaoMedida[] = productCtx?.medidas || product.Opcoes_medida || [];
+  const [internalSelectedMedida, setInternalSelectedMedida] = useState<OpcaoMedida | null>(
+    medidas.length > 0 ? medidas[0] : null
+  );
+  const selectedMedida = productCtx ? productCtx.selectedMedida : internalSelectedMedida;
+  const setSelectedMedida = productCtx ? productCtx.setSelectedMedida : setInternalSelectedMedida;
+
+  const availableColors = productCtx?.availableColors || [];
+
+  // No mobile, quando não tiver os dois primeiros componentes (Cor e Medida), deixar Revestimento e Cor aberto
+  useEffect(() => {
+    const hasFirstTwo = availableColors.length > 0 || (hasMedidas && medidas.length > 0);
+    if (!hasFirstTwo && hasRevestimentos) {
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        setIsRevestimentoSectionOpen(true);
+        if (revestimentos.length > 0) {
+          setOpenMaterialNome(selectedRevestimento?.Nome || revestimentos[0].Nome);
+        }
+      }
+    }
+  }, [product.id]);
+
+  const selectedColor = productCtx?.selectedColor || null;
+  const setSelectedColor = productCtx?.setSelectedColor || (() => {});
+
   const [internalVariationIndex, setInternalVariationIndex] = useState(0);
 
   const selectedVariationIndex = productCtx ? productCtx.selectedVariationIndex : internalVariationIndex;
@@ -175,33 +250,104 @@ export default function ProductHero({ product }: ProductHeroProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Variação ativa atual
-  const currentVariation = variations[selectedVariationIndex];
+  // Variação ativa atual (resolvida pelo contexto dinâmico ou fallback)
+  const currentVariation: Variation | undefined = productCtx?.selectedVariation || variations[selectedVariationIndex];
 
-  // Imagens da galeria para a variação ativa (foto da cor ativa + fotos de ambiente/detalhes)
+  // Imagens da galeria para a variação ativa e opções selecionadas
   const currentGallery: MediaItem[] = useMemo(() => {
-    const varPhotos = currentVariation?.Galeria && currentVariation.Galeria.length > 0
-      ? currentVariation.Galeria
-      : currentVariation?.Miniatura ? [currentVariation.Miniatura] : [];
+    const photos: MediaItem[] = [];
 
-    const otherPhotos: MediaItem[] = [];
-    for (const v of variations) {
-      if (v === currentVariation) continue;
-      if (v.Galeria && v.Galeria.length > 0) {
-        for (const img of v.Galeria) {
-          if (!varPhotos.some((vp) => vp.url === img.url) && !otherPhotos.some((op) => op.url === img.url)) {
-            otherPhotos.push(img);
+    // 0. Fotos da cor do revestimento ativo (3 camadas)
+    if (hasRevestimentos && selectedCorRevestimento) {
+      const revPhotos: any[] = selectedCorRevestimento.Galeria && selectedCorRevestimento.Galeria.length > 0
+        ? selectedCorRevestimento.Galeria
+        : selectedCorRevestimento.Miniatura ? [selectedCorRevestimento.Miniatura] : [];
+
+      for (const img of revPhotos) {
+        if (!photos.some((p) => p.url === img.url)) {
+          photos.push(img);
+        }
+      }
+    }
+
+    // 1. Fotos da cor/variação ativa da cadeira (cadeiras pré-setadas como Elements)
+    if (currentVariation) {
+      const varPhotos: MediaItem[] = currentVariation?.Galeria && currentVariation.Galeria.length > 0
+        ? currentVariation.Galeria
+        : currentVariation?.Miniatura ? [currentVariation.Miniatura] : [];
+
+      for (const img of varPhotos) {
+        if (!photos.some((p) => p.url === img.url)) {
+          photos.push(img);
+        }
+      }
+    }
+
+    // 2. Galeria de fotos global do produto (fora de variações, para cadastro facilitado)
+    if (product.Galeria && Array.isArray(product.Galeria)) {
+      for (const img of product.Galeria) {
+        if (img?.url && !photos.some((p) => p.url === img.url)) {
+          photos.push(img);
+        }
+      }
+    }
+
+    // 3. Fotos das opções selecionadas nos grupos (se houver)
+    if (hasVariationGroups) {
+      Object.values(selectedGroupOptions).forEach((opt: any) => {
+        if (opt.Foto_destaque && !photos.some((p) => p.url === opt.Foto_destaque.url)) {
+          photos.push(opt.Foto_destaque);
+        }
+        if (opt.Galeria && Array.isArray(opt.Galeria)) {
+          opt.Galeria.forEach((img: any) => {
+            if (img?.url && !photos.some((p) => p.url === img.url)) {
+              photos.push(img);
+            }
+          });
+        }
+        if (opt.Foto && !photos.some((p) => p.url === opt.Foto.url)) {
+          photos.push(opt.Foto);
+        }
+      });
+    }
+
+    // 4. Imagem principal de destaque do produto
+    const mainImg = product.Imagem_destaque;
+    if (mainImg && !photos.some((p) => p.url === mainImg.url)) {
+      photos.push(mainImg);
+    }
+
+    // 5. Outras fotos para enriquecer a navegação (outros revestimentos e variações)
+    if (hasRevestimentos) {
+      for (const rev of revestimentos) {
+        if (!rev.Cores) continue;
+        for (const cor of rev.Cores) {
+          if (cor.Nome_cor === selectedCorRevestimento?.Nome_cor) continue;
+          if (cor.Galeria && cor.Galeria.length > 0) {
+            for (const img of cor.Galeria) {
+              if (!photos.some((p) => p.url === img.url)) {
+                photos.push(img as MediaItem);
+              }
+            }
           }
         }
       }
     }
 
-    const combined = [...varPhotos, ...otherPhotos];
-    if (combined.length > 0) return combined;
+    for (const v of variations) {
+      if (v === currentVariation) continue;
+      if (v.Galeria && v.Galeria.length > 0) {
+        for (const img of v.Galeria) {
+          if (!photos.some((p) => p.url === img.url)) {
+            photos.push(img);
+          }
+        }
+      }
+    }
 
-    if (product.Imagem_destaque) return [product.Imagem_destaque];
+    if (photos.length > 0) return photos;
     return [];
-  }, [currentVariation, variations, product.Imagem_destaque]);
+  }, [hasRevestimentos, selectedCorRevestimento, revestimentos, currentVariation, product.Galeria, hasVariationGroups, selectedGroupOptions, product.Imagem_destaque, variations]);
 
   // Imagem ativa atualmente na tela
   const activeImage = currentGallery[activeImageIndex] || currentGallery[0];
@@ -259,32 +405,133 @@ export default function ProductHero({ product }: ProductHeroProps) {
     setActiveImageIndex(0); // Reseta a imagem para a primeira foto da cor escolhida
   };
 
-  // Preço base e regular (prioriza variação selecionada)
+  // Preço base e regular (suporta revestimentos em 3 camadas, cores legadas e grupos modulares)
   const basePrice = useMemo(() => {
-    if (currentVariation?.Preco_promocional && currentVariation.Preco_promocional > 0) {
-      return currentVariation.Preco_promocional;
+    let base = 0;
+    let additionalFromRevestimento = 0;
+
+    // 0. Revestimento ativo (3 camadas)
+    if (hasRevestimentos && selectedCorRevestimento) {
+      if (selectedCorRevestimento.Preco_promocional && Number(selectedCorRevestimento.Preco_promocional) > 0) {
+        base = Number(selectedCorRevestimento.Preco_promocional);
+      } else if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
+        base = Number(selectedCorRevestimento.Preco);
+      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
+        base = Number(selectedCorRevestimento.Preco_diferenciado);
+      }
+      if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
+        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+      }
     }
-    if (currentVariation?.Preco && currentVariation.Preco > 0) {
-      return currentVariation.Preco;
+
+    // 0.5. Medida selecionada (define preço base ou tem acréscimo)
+    let additionalFromMedida = 0;
+    if (hasMedidas && selectedMedida) {
+      if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
+        base = Number(selectedMedida.Preco_promocional);
+      } else if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
+        base = Number(selectedMedida.Preco);
+      }
+      if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
+        additionalFromMedida = Number(selectedMedida.Preco_adicional);
+      }
     }
-    if (currentVariation?.Preco_diferenciado && currentVariation.Preco_diferenciado > 0) {
-      return currentVariation.Preco_diferenciado;
+
+    // 1. Preço da cor ativa da cadeira (legado)
+    if (base === 0) {
+      if (currentVariation?.Preco_promocional && Number(currentVariation.Preco_promocional) > 0) {
+        base = Number(currentVariation.Preco_promocional);
+      } else if (currentVariation?.Preco && Number(currentVariation.Preco) > 0) {
+        base = Number(currentVariation.Preco);
+      } else if (currentVariation?.Preco_diferenciado && Number(currentVariation.Preco_diferenciado) > 0) {
+        base = Number(currentVariation.Preco_diferenciado);
+      } else if (product.Preco_promocional && Number(product.Preco_promocional) > 0) {
+        base = Number(product.Preco_promocional);
+      } else if (product.Preco && Number(product.Preco) > 0) {
+        base = Number(product.Preco);
+      }
     }
-    if (product.Preco_promocional && product.Preco_promocional > 0) {
-      return product.Preco_promocional;
+
+    // 2. Se não achou na cor nem na raiz, busca em opções dos grupos
+    if (base === 0 && hasVariationGroups) {
+      for (const opt of Object.values(selectedGroupOptions)) {
+        if (opt.Preco_promocional && Number(opt.Preco_promocional) > 0) {
+          base = Number(opt.Preco_promocional);
+          break;
+        }
+        if (opt.Preco && Number(opt.Preco) > 0) {
+          base = Number(opt.Preco);
+          break;
+        }
+      }
     }
-    return product.Preco || 0;
-  }, [currentVariation, product]);
+
+    // 3. Adicionais dos grupos + adicional do revestimento + adicional da medida
+    const additionalFromGroups = hasVariationGroups
+      ? Object.values(selectedGroupOptions).reduce(
+          (sum, opt) => sum + (Number(opt.Preco_adicional) || 0),
+          0
+        )
+      : 0;
+
+    const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
+
+    return base > 0 ? base + totalAdditional : (totalAdditional > 0 ? totalAdditional : 0);
+  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
 
   const regularPrice = useMemo(() => {
-    if (currentVariation?.Preco && currentVariation.Preco > 0) {
-      return currentVariation.Preco;
+    let reg = 0;
+    let additionalFromRevestimento = 0;
+
+    // 0. Revestimento ativo (3 camadas)
+    if (hasRevestimentos && selectedCorRevestimento) {
+      if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
+        reg = Number(selectedCorRevestimento.Preco);
+      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
+        reg = Number(selectedCorRevestimento.Preco_diferenciado);
+      }
+      if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
+        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+      }
     }
-    if (currentVariation?.Preco_diferenciado && currentVariation.Preco_diferenciado > 0) {
-      return currentVariation.Preco_diferenciado;
+
+    // 0.5. Medida selecionada (regular)
+    let additionalFromMedida = 0;
+    if (hasMedidas && selectedMedida) {
+      if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
+        reg = Number(selectedMedida.Preco);
+      } else if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
+        reg = Number(selectedMedida.Preco_promocional);
+      }
+      if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
+        additionalFromMedida = Number(selectedMedida.Preco_adicional);
+      }
     }
-    return product.Preco || 0;
-  }, [currentVariation, product]);
+
+    // 1. Preço regular da cor ativa da cadeira (legado)
+    if (reg === 0) {
+      if (currentVariation?.Preco && Number(currentVariation.Preco) > 0) {
+        reg = Number(currentVariation.Preco);
+      } else if (currentVariation?.Preco_diferenciado && Number(currentVariation.Preco_diferenciado) > 0) {
+        reg = Number(currentVariation.Preco_diferenciado);
+      } else if (product.Preco && Number(product.Preco) > 0) {
+        reg = Number(product.Preco);
+      } else if (product.Preco_promocional && Number(product.Preco_promocional) > 0) {
+        reg = Number(product.Preco_promocional);
+      }
+    }
+
+    const additionalFromGroups = hasVariationGroups
+      ? Object.values(selectedGroupOptions).reduce(
+          (sum, opt) => sum + (Number(opt.Preco_adicional) || 0),
+          0
+        )
+      : 0;
+
+    const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
+
+    return reg > 0 ? reg + totalAdditional : (totalAdditional > 0 ? totalAdditional : 0);
+  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
 
   const hasDiscount = regularPrice > 0 && basePrice > 0 && basePrice < regularPrice;
 
@@ -293,27 +540,84 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const cart = useCart();
 
   const handleQuoteRequest = () => {
-    const corName = currentVariation?.Nome_cor;
-    const msg = `Olá! Gostaria de solicitar um orçamento para o produto: ${product.Nome}${corName ? ` (Cor: ${corName})` : ""} - Qtd: ${quantity}.`;
+    const configLines: string[] = [];
+    if (hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
+      configLines.push(`• Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})${selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedCorRevestimento.Preco_adicional))})` : ""}`);
+    }
+    if (availableColors.length > 0 && selectedColor) {
+      configLines.push(`• Cor: ${selectedColor}`);
+    }
+    if (hasVariationGroups) {
+      Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
+        configLines.push(`• ${groupTitle}: ${opt.Nome}${opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? ` (+${formatBRL(Number(opt.Preco_adicional))})` : ""}`);
+      });
+    }
+    if (hasMedidas && selectedMedida) {
+      configLines.push(`• Medida: ${selectedMedida.Titulo}${selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedMedida.Preco_adicional))})` : ""}`);
+    }
+
+    const configDetails = configLines.length > 0 ? configLines.join("\n") : "";
+    const variationLabel = productCtx?.variationDisplayName || (
+      currentVariation?.Nome_cor ? `Cor: ${currentVariation.Nome_cor}` : ""
+    );
+
+    const msg = `Olá! Gostaria de solicitar um orçamento para o produto: *${product.Nome}*${
+      configLines.length > 0
+        ? `\n\n*Configurações Escolhidas:*\n${configDetails}`
+        : (variationLabel ? ` (Variação: ${variationLabel})` : "")
+    } - Quantidade: ${quantity}.`;
     const whatsappUrl = `https://wa.me/554530550000?text=${encodeURIComponent(msg)}`;
     window.open(whatsappUrl, "_blank");
   };
 
   const handleAddToCart = () => {
-    const thumbUrl = currentVariation?.Miniatura
-      ? getStrapiMedia(currentVariation.Miniatura.url)
-      : currentVariation?.Galeria && currentVariation.Galeria[0]
-      ? getStrapiMedia(currentVariation.Galeria[0].url)
-      : activeImageUrl;
+    const thumbUrl = hasRevestimentos && selectedCorRevestimento
+      ? (selectedCorRevestimento.Galeria?.[0] ? getStrapiMedia(selectedCorRevestimento.Galeria[0].url) : (selectedCorRevestimento.Miniatura ? getStrapiMedia(selectedCorRevestimento.Miniatura.url) : activeImageUrl))
+      : hasVariationGroups
+      ? (activeGroupPhotoUrl || (product.Imagem_destaque?.url ? getStrapiMedia(product.Imagem_destaque.url) : null))
+      : (currentVariation?.Miniatura
+          ? getStrapiMedia(currentVariation.Miniatura.url)
+          : currentVariation?.Galeria && currentVariation.Galeria[0]
+          ? getStrapiMedia(currentVariation.Galeria[0].url)
+          : activeImageUrl);
 
     const selectedWarranty = product.garantias?.find((g: any) => g.id === selectedWarrantyId);
 
+    const options: string[] = [];
+    if (hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
+      options.push(`Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`);
+    }
+    if (availableColors.length > 0 && selectedColor) {
+      options.push(`Cor: ${selectedColor}`);
+    } else if (!hasRevestimentos && currentVariation?.Nome_cor) {
+      options.push(`Cor: ${currentVariation.Nome_cor}`);
+    }
+    if (hasVariationGroups) {
+      Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
+        options.push(`${groupTitle}: ${opt.Nome}`);
+      });
+    }
+    if (hasMedidas && selectedMedida) {
+      options.push(`Medida: ${selectedMedida.Titulo}`);
+    }
+
+    const variationLabel = options.length > 0 ? options.join(" • ") : "Padrão";
+
+    const medidaKey = hasMedidas && selectedMedida ? `medida:${selectedMedida.Titulo}` : "";
+
+    const compositeCartId = hasRevestimentos && selectedRevestimento && selectedCorRevestimento
+      ? `${product.id}-${selectedRevestimento.Nome}:${selectedCorRevestimento.Nome_cor}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
+      : hasVariationGroups
+      ? `${product.id}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
+      : `${product.id}-${variationLabel}-${selectedWarrantyId || 0}`;
+
     cart.addItem({
-      id: `${product.id}-${currentVariation?.Nome_cor || "default"}-${selectedWarrantyId || 0}`,
+      id: compositeCartId,
       productId: product.id,
       name: product.Nome,
       slug: product.slug || product.Nome.toLowerCase(),
-      variationName: currentVariation?.Nome_cor || "Padrão",
+      variationName: variationLabel,
+      options: options.length > 0 ? options : undefined,
       warrantyName: selectedWarranty?.Nome,
       price: unitTotalPrice,
       isQuoteOnly: isQuoteOnly,
@@ -350,7 +654,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
         {/* ========================================================================= */}
         {/* LADO ESQUERDO: GALERIA DE IMAGENS DO PRODUTO COM ZOOM NO CLIQUE           */}
         {/* ========================================================================= */}
-        <div className="relative w-full lg:sticky lg:top-36 flex flex-col items-center md:items-start justify-start">
+        <div className="relative w-full flex flex-col items-center md:items-start justify-start">
           {/* Container amplo para a cadeira ocupar 100% da largura da tela no mobile */}
           <div
             ref={imageContainerRef}
@@ -369,7 +673,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   ? `${activeImage.width} / ${activeImage.height}`
                   : "1 / 1",
             }}
-            className={`group relative w-full aspect-square max-w-[950px] max-h-[950px] flex items-center justify-center select-none self-start touch-pan-y ${
+            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-start touch-pan-y ${
               activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
             }`}
           >
@@ -543,70 +847,149 @@ export default function ProductHero({ product }: ProductHeroProps) {
           <div className="w-auto -mx-4 sm:-mx-6 border-b border-[#E5E7EB] my-5 md:hidden" />
 
           {/* ----------------------------------------------------------------------- */}
-          {/* SELEÇÃO DE COR                                                          */}
+          {/* 1. ESCOLHA DE COR TRADICIONAL / PRÉ-SETADA (Ex: Cadeiras Elements)      */}
           {/* ----------------------------------------------------------------------- */}
-          {variations.length > 0 && (
-            <>
-              <div className="mt-5 md:mt-7 flex flex-col">
+          {availableColors.length > 0 && (
+            <div className="mt-5 md:mt-7 flex flex-col">
+              <div className="flex items-center justify-between">
                 <h2 className="text-[14px] md:text-[15px] font-heading font-semibold text-[#000000]">
-                  Escolha a cor
+                  Cor
                 </h2>
-                <p className="text-[12px] font-sans text-[#69736B] mt-0.5">
-                  Encontre a cor que mais combina com seu ambiente
-                </p>
+                {selectedColor && (
+                  <span className="text-[12px] font-sans font-medium text-stone-600">
+                    {selectedColor}
+                  </span>
+                )}
+              </div>
+              <p className="text-[12px] font-sans text-[#69736B] mt-0.5">
+                Encontre a cor que mais combina com seu ambiente
+              </p>
 
-                {/* Lista de cards de cores */}
-                <div className="mt-3 flex flex-col gap-2.5">
-                  {variations.map((v, idx) => {
-                    const isSelected = idx === selectedVariationIndex;
-                    const thumbUrl = v.Miniatura
-                      ? getStrapiMedia(v.Miniatura.url)
-                      : v.Galeria && v.Galeria[0]
-                      ? getStrapiMedia(v.Galeria[0].url)
-                      : null;
-                    const dotColor = normalizeHex(v.Cor_hex);
+              {/* Lista de cards de cores */}
+              <div className="mt-3 flex flex-col gap-2.5">
+                {availableColors.map((colorObj) => {
+                  const isSelected = colorObj.name.toLowerCase() === selectedColor?.toLowerCase();
+                  const dotColor = normalizeHex(colorObj.hex);
 
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSelectVariation(idx)}
-                        className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${
-                          isSelected
-                            ? "border-[#000000] bg-white shadow-xs"
-                            : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
-                        }`}
-                      >
-                        {/* Lado esquerdo: Bolinha de cor + Thumbnail + Nome */}
-                        <div className="flex items-center gap-3">
-                          {/* Bolinha com a cor exata */}
-                          <span
-                            className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
-                            style={{ backgroundColor: dotColor }}
-                            aria-hidden="true"
-                          />
+                  return (
+                    <button
+                      key={colorObj.name}
+                      type="button"
+                      onClick={() => {
+                        setIsZoomed(false);
+                        setSelectedColor(colorObj.name);
+                        setActiveImageIndex(0);
+                      }}
+                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${
+                        isSelected
+                          ? "border-[#000000] bg-white shadow-xs"
+                          : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
+                      }`}
+                    >
+                      {/* Lado esquerdo: Bolinha de cor + Thumbnail opcional + Nome */}
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                          style={{ backgroundColor: dotColor }}
+                          aria-hidden="true"
+                        />
 
-                          {/* Thumbnail miniatura da cadeira (sem moldura quadrada cinza) */}
-                          <div className="relative w-8 h-8 md:w-9 md:h-9 shrink-0 flex items-center justify-center">
-                            {thumbUrl ? (
-                              <Image
-                                src={thumbUrl}
-                                alt={v.Nome_cor}
-                                fill
-                                className="object-contain"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gray-100 rounded-xs" />
-                            )}
+                        {colorObj.thumbUrl ? (
+                          <div className="relative w-7 h-7 rounded-full overflow-hidden border border-black/10 shrink-0">
+                            <Image
+                              src={colorObj.thumbUrl}
+                              alt={colorObj.name}
+                              fill
+                              className="object-cover"
+                            />
                           </div>
+                        ) : null}
 
-                          {/* Nome da cor */}
-                          <span className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000]">
-                            {v.Nome_cor}
+                        <span className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000]">
+                          {colorObj.name}
+                        </span>
+                      </div>
+
+                      <div className="shrink-0 flex items-center justify-center">
+                        {isSelected ? (
+                          <div className="w-[18px] h-[18px] rounded-full bg-[#000000] flex items-center justify-center text-white">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="w-[18px] h-[18px] rounded-full border border-[#D1D5DB] group-hover:border-gray-400 transition-colors" />
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ----------------------------------------------------------------------- */}
+          {/* 1.5. OPÇÕES DE MEDIDAS (Tamanhos/Dimensões para Mesas, etc.)             */}
+          {/* ----------------------------------------------------------------------- */}
+          {hasMedidas && (
+            <div className="mt-5 md:mt-7 flex flex-col">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[14px] md:text-[15px] font-heading font-semibold text-[#000000]">
+                  Medida
+                </h2>
+                {selectedMedida && (
+                  <span className="text-[12px] font-sans font-medium text-stone-600">
+                    {selectedMedida.Titulo}
+                  </span>
+                )}
+              </div>
+              <p className="text-[12px] font-sans text-[#69736B] mt-0.5">
+                Escolha o tamanho ideal para o seu espaço
+              </p>
+
+              {/* Lista de cards de medidas */}
+              <div className="mt-3 flex flex-col gap-2.5">
+                {medidas.map((med) => {
+                  const isSelected = selectedMedida?.Titulo === med.Titulo;
+
+                  return (
+                    <button
+                      key={med.Titulo}
+                      type="button"
+                      onClick={() => {
+                        setIsZoomed(false);
+                        setSelectedMedida(med);
+                      }}
+                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${
+                        isSelected
+                          ? "border-[#000000] bg-white shadow-xs"
+                          : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
+                      }`}
+                    >
+                      {/* Lado esquerdo: Nome da medida + Descrição */}
+                      <div className="flex flex-col">
+                        <span className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000]">
+                          {med.Titulo}
+                        </span>
+                        {med.Descricao && (
+                          <span className="text-[11px] font-sans text-stone-500 mt-0.5">
+                            {med.Descricao}
                           </span>
-                        </div>
+                        )}
+                      </div>
 
-                        {/* Lado direito: Radio button circular */}
+                      {/* Lado direito: Preço ou Acréscimo + Radio checkmark */}
+                      <div className="flex items-center gap-3 shrink-0">
+                        {med.Preco_adicional && Number(med.Preco_adicional) > 0 ? (
+                          <span className="text-[12px] font-sans font-medium text-[#006642]">
+                            +{formatBRL(Number(med.Preco_adicional))}
+                          </span>
+                        ) : med.Preco && Number(med.Preco) > 0 ? (
+                          <span className="text-[12px] font-sans font-medium text-stone-700">
+                            {formatBRL(Number(med.Preco_promocional || med.Preco))}
+                          </span>
+                        ) : null}
+
                         <div className="shrink-0 flex items-center justify-center">
                           {isSelected ? (
                             <div className="w-[18px] h-[18px] rounded-full bg-[#000000] flex items-center justify-center text-white">
@@ -618,15 +1001,434 @@ export default function ProductHero({ product }: ProductHeroProps) {
                             <div className="w-[18px] h-[18px] rounded-full border border-[#D1D5DB] group-hover:border-gray-400 transition-colors" />
                           )}
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
+          )}
 
-              {/* Borda 100% (Apenas Mobile) */}
-              <div className="w-auto -mx-4 sm:-mx-6 border-b border-[#E5E7EB] my-5 md:hidden" />
-            </>
+          {/* ----------------------------------------------------------------------- */}
+          {/* 2. SELEÇÃO DE REVESTIMENTO E COR EM 3 CAMADAS (ESTILO CAVALETTI)        */}
+          {/* ----------------------------------------------------------------------- */}
+          {hasRevestimentos && (
+            <div className="mt-5 md:mt-7 flex flex-col">
+              {/* CAMADA 1: ACORDEÃO PRINCIPAL / PAI */}
+              <button
+                type="button"
+                onClick={() => setIsRevestimentoSectionOpen((prev) => !prev)}
+                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors"
+                aria-expanded={isRevestimentoSectionOpen}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
+                    Revestimento e cor
+                  </span>
+                  {selectedRevestimento && selectedCorRevestimento && (
+                    <span className="text-[13px] font-sans text-stone-500 font-normal">
+                      — {selectedRevestimento.Nome} ({selectedCorRevestimento.Nome_cor})
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`transition-transform duration-200 ${!isRevestimentoSectionOpen ? "rotate-180" : ""}`}
+                  >
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* CONTEÚDO DO ACORDEÃO PAI (CAMADAS 2 E 3) */}
+              {isRevestimentoSectionOpen && (
+                <div className="mt-3.5 flex flex-col">
+                  <p className="text-[12px] font-sans text-[#69736B] mb-3">
+                    Selecione o tipo de acabamento e a cor ideal para o seu ambiente
+                  </p>
+
+                  {/* CAMADA 2: ACORDEÕES SANFONA POR TIPO DE REVESTIMENTO (MATERIAL) */}
+                  <div className="flex flex-col gap-2.5">
+                    {revestimentos.map((rev) => {
+                      const isSelectedRev = selectedRevestimento?.Nome === rev.Nome;
+                      const isMaterialOpen = openMaterialNome === rev.Nome;
+                      const activeCorInThisRev = isSelectedRev ? selectedCorRevestimento : null;
+
+                      return (
+                        <div
+                          key={rev.Nome}
+                          className={`rounded-[8px] border transition-all overflow-hidden ${
+                            isSelectedRev
+                              ? "border-stone-900 bg-stone-50/20 shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300"
+                          }`}
+                        >
+                          {/* Cabeçalho Sanfona do Material */}
+                          <button
+                            type="button"
+                            onClick={() => toggleMaterial(rev.Nome)}
+                            className="w-full px-3.5 py-3 flex items-center justify-between text-left group cursor-pointer transition-colors"
+                            aria-expanded={isMaterialOpen}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              {rev.Foto_amostra?.url && getStrapiMedia(rev.Foto_amostra.url) ? (
+                                <div className="relative w-6 h-6 rounded-full overflow-hidden border border-black/10 shrink-0">
+                                  <Image
+                                    src={getStrapiMedia(rev.Foto_amostra.url)!}
+                                    alt={rev.Nome}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                </div>
+                              ) : null}
+
+                              <div className="flex items-baseline gap-2">
+                                <span className={`text-[13px] md:text-[14px] font-sans font-medium ${isSelectedRev ? "text-stone-900" : "text-stone-800 group-hover:text-black"}`}>
+                                  {rev.Nome}
+                                </span>
+                                {rev.Cores && rev.Cores.length > 0 && (
+                                  <span className="text-[11px] font-sans text-stone-400">
+                                    ({rev.Cores.length} {rev.Cores.length === 1 ? "cor" : "cores"})
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2.5">
+                              {activeCorInThisRev && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
+                                  {activeCorInThisRev.Cor_hex && (
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full border border-black/10"
+                                      style={{ backgroundColor: normalizeHex(activeCorInThisRev.Cor_hex) }}
+                                    />
+                                  )}
+                                  <span className="text-[11px] font-sans font-medium">
+                                    {activeCorInThisRev.Nome_cor}
+                                  </span>
+                                </div>
+                              )}
+
+                              <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-0.5">
+                                <svg
+                                  width="15"
+                                  height="15"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className={`transition-transform duration-200 ${!isMaterialOpen ? "rotate-180" : ""}`}
+                                >
+                                  <polyline points="18 15 12 9 6 15" />
+                                </svg>
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* CAMADA 3: LISTAGEM DE CORES DO REVESTIMENTO (SANFONA ABERTA) */}
+                          {isMaterialOpen && rev.Cores && rev.Cores.length > 0 && (
+                            <div className="px-3.5 pb-3.5 pt-1 border-t border-stone-100 flex flex-wrap gap-2 sm:gap-2.5 items-start">
+                              {rev.Cores.map((cor) => {
+                                const isCorSelected = isSelectedRev && selectedCorRevestimento?.Nome_cor === cor.Nome_cor;
+                                const dotColor = normalizeHex(cor.Cor_hex);
+                                const thumbImg = cor.Miniatura?.url ? getStrapiMedia(cor.Miniatura.url) : null;
+
+                                return (
+                                  <button
+                                    key={cor.Nome_cor}
+                                    type="button"
+                                    onClick={() => {
+                                      setIsZoomed(false);
+                                      selectRevestimentoAndCor(rev, cor);
+                                      setActiveImageIndex(0);
+                                    }}
+                                    className={`group/cor flex items-center gap-2 px-3 py-2 rounded-[6px] border transition-all cursor-pointer text-left min-h-[46px] ${
+                                      isCorSelected
+                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
+                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                                    }`}
+                                  >
+                                    {thumbImg ? (
+                                      <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
+                                        <Image
+                                          src={thumbImg}
+                                          alt={cor.Nome_cor}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      </div>
+                                    ) : (
+                                      <span
+                                        className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                                        style={{ backgroundColor: dotColor }}
+                                        aria-hidden="true"
+                                      />
+                                    )}
+
+                                    <div className="flex flex-col">
+                                      <span className={`text-[12px] sm:text-[13px] font-sans ${isCorSelected ? "font-semibold text-stone-900" : "font-normal text-stone-700 group-hover/cor:text-black"}`}>
+                                        {cor.Nome_cor}
+                                      </span>
+                                      {cor.Preco_adicional && Number(cor.Preco_adicional) > 0 ? (
+                                        <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5">
+                                          +{formatBRL(Number(cor.Preco_adicional))}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5">
+                                          Sem acréscimo
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {isCorSelected && (
+                                      <div className="ml-1 w-3.5 h-3.5 rounded-full bg-stone-900 text-white flex items-center justify-center shrink-0">
+                                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                          <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+
+
+          {/* ----------------------------------------------------------------------- */}
+          {/* 3. COMPONENTES E ACESSÓRIOS (ACORDEÃO PAI COM SUB-ACORDEÕES)             */}
+          {/* ----------------------------------------------------------------------- */}
+          {hasVariationGroups && (
+            <div className="mt-5 md:mt-7 flex flex-col">
+              {/* CAMADA 1: ACORDEÃO PRINCIPAL / PAI */}
+              <button
+                type="button"
+                onClick={() => setIsComponentsSectionOpen((prev) => !prev)}
+                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors"
+                aria-expanded={isComponentsSectionOpen}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
+                    Componentes e Acessórios
+                  </span>
+                  {selectedComponentsSummary && (
+                    <span className="text-[13px] font-sans text-stone-500 font-normal">
+                      — {selectedComponentsSummary}
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`transition-transform duration-200 ${!isComponentsSectionOpen ? "rotate-180" : ""}`}
+                  >
+                    <polyline points="18 15 12 9 6 15" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* CONTEÚDO DO ACORDEÃO PAI: LISTA DOS SUB-ACORDEÕES DE COMPONENTES */}
+              {isComponentsSectionOpen && (
+                <div className="mt-3.5 flex flex-col">
+                  <p className="text-[12px] font-sans text-[#69736B] mb-3">
+                    Personalize os componentes e opcionais da sua cadeira
+                  </p>
+
+                  <div className="flex flex-col gap-2.5">
+                    {variationGroups.map((group) => {
+                      const isGroupOpen = openGroupTitulo === group.Titulo;
+                      const currentSelected = selectedGroupOptions[group.Titulo];
+
+                      return (
+                        <div
+                          key={group.Titulo}
+                          className={`rounded-[8px] border transition-all overflow-hidden ${
+                            currentSelected
+                              ? "border-stone-900 bg-stone-50/20 shadow-xs"
+                              : "border-stone-200 bg-white hover:border-stone-300"
+                          }`}
+                        >
+                          {/* Cabeçalho Sanfona do Componente */}
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(group.Titulo)}
+                            className="w-full px-3.5 py-3 flex items-center justify-between text-left group cursor-pointer transition-colors"
+                            aria-expanded={isGroupOpen}
+                          >
+                            <div className="flex items-baseline gap-2">
+                              <span className={`text-[13px] md:text-[14px] font-sans font-medium ${currentSelected ? "text-stone-900" : "text-stone-800 group-hover:text-black"}`}>
+                                {group.Titulo}
+                              </span>
+                              {group.Opcoes && group.Opcoes.length > 0 && (
+                                <span className="text-[11px] font-sans text-stone-400">
+                                  ({group.Opcoes.length} {group.Opcoes.length === 1 ? "opção" : "opções"})
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2.5">
+                              {currentSelected && (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
+                                  {currentSelected.Foto?.url && getStrapiMedia(currentSelected.Foto.url) ? (
+                                    <div className="relative w-3.5 h-3.5 rounded-full overflow-hidden border border-black/10 shrink-0">
+                                      <Image
+                                        src={getStrapiMedia(currentSelected.Foto.url)!}
+                                        alt={currentSelected.Nome}
+                                        fill
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                  ) : currentSelected.Cor_hex ? (
+                                    <span
+                                      className="w-2.5 h-2.5 rounded-full border border-black/10"
+                                      style={{ backgroundColor: normalizeHex(currentSelected.Cor_hex) }}
+                                    />
+                                  ) : null}
+                                  <span className="text-[11px] font-sans font-medium">
+                                    {currentSelected.Nome}
+                                  </span>
+                                </div>
+                              )}
+
+                              <div className="text-stone-400 group-hover:text-stone-700 transition-colors">
+                                <svg
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className={`transition-transform duration-200 ${isGroupOpen ? "rotate-180" : ""}`}
+                                >
+                                  <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Conteúdo: Botões em Pílula */}
+                          {isGroupOpen && (
+                            <div className="p-3 pt-1 flex flex-wrap gap-2 sm:gap-2.5 items-start">
+                              {group.Opcoes?.map((opt) => {
+                                const isSelected = currentSelected?.Nome === opt.Nome;
+                                const photoUrl = opt.Foto?.url ? getStrapiMedia(opt.Foto.url) : null;
+                                const dotColor = normalizeHex(opt.Cor_hex);
+
+                                return (
+                                  <button
+                                    key={opt.Nome}
+                                    type="button"
+                                    onClick={() => {
+                                      setIsZoomed(false);
+                                      selectGroupOption(group.Titulo, opt);
+                                      setActiveImageIndex(0);
+                                    }}
+                                    className={`group/opt flex items-center gap-2 px-3 py-2 rounded-[6px] border transition-all cursor-pointer text-left min-h-[46px] ${
+                                      isSelected
+                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
+                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                                    }`}
+                                  >
+                                    {photoUrl ? (
+                                      <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
+                                        <Image
+                                          src={photoUrl}
+                                          alt={opt.Nome}
+                                          fill
+                                          className="object-cover"
+                                        />
+                                      </div>
+                                    ) : opt.Cor_hex ? (
+                                      <span
+                                        className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                                        style={{ backgroundColor: dotColor }}
+                                        aria-hidden="true"
+                                      />
+                                    ) : null}
+
+                                    <div className="flex flex-col">
+                                      <span
+                                        className={`text-[12px] sm:text-[13px] font-sans ${
+                                          isSelected
+                                            ? "font-semibold text-stone-900"
+                                            : "font-normal text-stone-700 group-hover/opt:text-black"
+                                        }`}
+                                      >
+                                        {opt.Nome}
+                                      </span>
+                                      {opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? (
+                                        <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5">
+                                          +{formatBRL(Number(opt.Preco_adicional))}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5">
+                                          Sem acréscimo
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {isSelected && (
+                                      <div className="ml-1 w-3.5 h-3.5 rounded-full bg-stone-900 text-white flex items-center justify-center shrink-0">
+                                        <svg
+                                          width="8"
+                                          height="8"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="3.5"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                        >
+                                          <polyline points="20 6 9 17 4 12" />
+                                        </svg>
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Borda 100% (Apenas Mobile se houver variações) */}
+          {(hasRevestimentos || hasVariationGroups || availableColors.length > 0 || hasMedidas) && (
+            <div className="w-auto -mx-4 sm:-mx-6 border-b border-[#E5E7EB] my-5 md:hidden" />
           )}
 
           {/* ----------------------------------------------------------------------- */}
