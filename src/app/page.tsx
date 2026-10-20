@@ -26,7 +26,7 @@ async function getHomeData() {
 async function getBestSellers() {
   try {
     const url = getStrapiURL(
-      "/api/produtos?filters[Mais_vendido][$eq]=true&filters[Ativo][$ne]=false&populate[Variacoes][populate]=*&populate[marca]=true&populate[Imagem_destaque]=true&populate[garantias]=true&populate[Foto_mais_vendidos]=true"
+      "/api/produtos?filters[Mais_vendido][$eq]=true&filters[Ativo][$ne]=false&populate[Variacoes][populate]=*&populate[marca]=true&populate[Galeria]=true&populate[garantias]=true&populate[Foto_mais_vendidos]=true"
     );
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
@@ -42,7 +42,7 @@ async function getBestSellers() {
 async function getCatalogProducts() {
   try {
     const url = getStrapiURL(
-      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Imagem_destaque]=true"
+      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true"
     );
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];

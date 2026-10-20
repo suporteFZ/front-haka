@@ -34,7 +34,7 @@ async function getRelatedProducts(
       "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[marca]": "true",
       "populate[categoria]": "true",
-      "populate[Imagem_destaque]": "true",
+      "populate[Galeria]": "true",
       "populate[Foto_mais_vendidos]": "true",
       "pagination[pageSize]": "20",
     });

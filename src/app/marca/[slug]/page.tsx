@@ -38,7 +38,7 @@ async function getBrandProducts(brandSlug: string): Promise<ProductCardItem[]> {
     const url = getStrapiURL(
       `/api/produtos?filters[marca][slug][$eqi]=${encodeURIComponent(
         brandSlug
-      )}&filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Imagem_destaque]=true&populate[Foto_mais_vendidos]=true`
+      )}&filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
     const res = await fetch(url, { cache: "no-store" });

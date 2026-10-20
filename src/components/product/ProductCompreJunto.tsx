@@ -143,8 +143,8 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     if (product.Foto_mais_vendidos?.url) {
       return getStrapiMedia(product.Foto_mais_vendidos.url);
     }
-    if (product.Imagem_destaque?.url) {
-      return getStrapiMedia(product.Imagem_destaque.url);
+    if (product.Galeria?.[0]?.url) {
+      return getStrapiMedia(product.Galeria[0].url);
     }
     return null;
   }, [product, activeImageUrl, productCtx?.activeGalleryImageUrl, productCtx?.activeVariationPhotoUrl]);

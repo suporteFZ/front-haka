@@ -16,7 +16,7 @@ export default function ProductAccordion({ product }: ProductAccordionProps) {
   // Imagem em destaque fixa da cadeira cadastrada no Strapi
   const featuredImgUrl =
     getStrapiMedia(product.Foto_fixa_acordeao?.url) ||
-    getStrapiMedia(product.Imagem_destaque?.url);
+    getStrapiMedia(product.Galeria?.[0]?.url);
 
   // Itens cadastrados no Strapi (apenas itens válidos com título e texto)
   const items = (product.Itens_acordeao || []).filter(

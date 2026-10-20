@@ -34,6 +34,7 @@ export interface ProductCardItem {
       Foto_destaque?: any;
     }>;
   }>;
+  Galeria?: any[];
   Imagem_destaque?: any;
   Foto_mais_vendidos?: any;
 }
@@ -47,13 +48,15 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
   const galeria = firstVariation?.Galeria || [];
   const firstGroupOpt = product.Grupos_variacao?.[0]?.Opcoes?.[0];
 
+  const rootGaleria = Array.isArray(product.Galeria) ? product.Galeria : [];
+
   const img1 =
     miniatura ||
     galeria[0] ||
+    rootGaleria[0] ||
     firstGroupOpt?.Foto_destaque ||
     firstGroupOpt?.Foto ||
     product.Foto_mais_vendidos ||
-    product.Imagem_destaque ||
     null;
 
   let img2 = null;
@@ -64,10 +67,14 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
         (g: any) => g?.id !== miniatura?.id && g?.url !== miniatura?.url
       ) ||
       galeria[0] ||
+      rootGaleria[1] ||
       null;
   } else if (galeria.length > 1) {
     // Se não tem miniatura, a 1ª foto foi galeria[0], então a 2ª foto do hover é galeria[1]
     img2 = galeria[1] || null;
+  } else if (rootGaleria.length > 1) {
+    // Quando não tem variações tradicionais, usa as fotos da galeria na raiz para o hover
+    img2 = rootGaleria[1] || null;
   } else if (product.Grupos_variacao?.[0]?.Opcoes && product.Grupos_variacao[0].Opcoes.length > 1) {
     const secondOpt = product.Grupos_variacao[0].Opcoes[1];
     img2 = secondOpt.Foto_destaque || secondOpt.Foto || null;

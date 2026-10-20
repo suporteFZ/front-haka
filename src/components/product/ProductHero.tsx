@@ -311,12 +311,6 @@ export default function ProductHero({ product }: ProductHeroProps) {
       });
     }
 
-    // 4. Imagem principal de destaque do produto
-    const mainImg = product.Imagem_destaque;
-    if (mainImg && !photos.some((p) => p.url === mainImg.url)) {
-      photos.push(mainImg);
-    }
-
     // 5. Outras fotos para enriquecer a navegação (outros revestimentos e variações)
     if (hasRevestimentos) {
       for (const rev of revestimentos) {
@@ -347,7 +341,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
     if (photos.length > 0) return photos;
     return [];
-  }, [hasRevestimentos, selectedCorRevestimento, revestimentos, currentVariation, product.Galeria, hasVariationGroups, selectedGroupOptions, product.Imagem_destaque, variations]);
+  }, [hasRevestimentos, selectedCorRevestimento, revestimentos, currentVariation, product.Galeria, hasVariationGroups, selectedGroupOptions, variations]);
 
   // Imagem ativa atualmente na tela
   const activeImage = currentGallery[activeImageIndex] || currentGallery[0];

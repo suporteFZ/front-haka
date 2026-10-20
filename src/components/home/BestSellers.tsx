@@ -24,6 +24,7 @@ interface ProductItem {
     Miniatura?: any;
     Galeria?: any[];
   }>;
+  Galeria?: any[];
   Imagem_destaque?: any;
   Foto_mais_vendidos?: any;
   Ativo?: boolean;
@@ -142,7 +143,7 @@ export default function BestSellers({
             product.Foto_mais_vendidos ||
             firstVariation?.Galeria?.[0] ||
             firstVariation?.Miniatura ||
-            product.Imagem_destaque;
+            product.Galeria?.[0];
 
           const imageUrl = getStrapiMedia(firstImageObj?.url);
           const isMobileOpen = activeMobileId === product.id;
@@ -254,7 +255,7 @@ function MobileCard({ product }: { product: ProductItem }) {
     product.Foto_mais_vendidos ||
     firstVariation?.Galeria?.[0] ||
     firstVariation?.Miniatura ||
-    product.Imagem_destaque;
+    product.Galeria?.[0];
 
   const imageUrl = getStrapiMedia(firstImageObj?.url);
 

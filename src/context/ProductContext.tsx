@@ -361,10 +361,6 @@ export function ProductProvider({
       return getStrapiMedia(product.Galeria[0].url);
     }
 
-    // 4. Imagem destaque do produto
-    if (product?.Imagem_destaque?.url) {
-      return getStrapiMedia(product.Imagem_destaque.url);
-    }
     return null;
   }, [hasRevestimentos, selectedCorRevestimento, selectedVariation, activeGroupPhotoUrl, product]);
 
