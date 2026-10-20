@@ -295,9 +295,6 @@ export default function ProductHero({ product }: ProductHeroProps) {
     // 3. Fotos das opções selecionadas nos grupos (se houver)
     if (hasVariationGroups) {
       Object.values(selectedGroupOptions).forEach((opt: any) => {
-        if (opt.Foto_destaque && !photos.some((p) => p.url === opt.Foto_destaque.url)) {
-          photos.push(opt.Foto_destaque);
-        }
         if (opt.Galeria && Array.isArray(opt.Galeria)) {
           opt.Galeria.forEach((img: any) => {
             if (img?.url && !photos.some((p) => p.url === img.url)) {

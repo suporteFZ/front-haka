@@ -191,11 +191,6 @@ export function ProductProvider({
     if (!hasVariationGroups) return null;
     const opts = Object.values(selectedGroupOptions);
     for (const opt of opts) {
-      if (opt.Foto_destaque?.url) {
-        return getStrapiMedia(opt.Foto_destaque.url);
-      }
-    }
-    for (const opt of opts) {
       if (opt.Foto?.url) {
         return getStrapiMedia(opt.Foto.url);
       }

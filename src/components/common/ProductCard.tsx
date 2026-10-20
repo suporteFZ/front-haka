@@ -31,7 +31,6 @@ export interface ProductCardItem {
       Nome?: string;
       Foto?: any;
       Preco_adicional?: number;
-      Foto_destaque?: any;
     }>;
   }>;
   Galeria?: any[];
@@ -54,7 +53,6 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
     miniatura ||
     galeria[0] ||
     rootGaleria[0] ||
-    firstGroupOpt?.Foto_destaque ||
     firstGroupOpt?.Foto ||
     product.Foto_mais_vendidos ||
     null;
@@ -77,7 +75,7 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
     img2 = rootGaleria[1] || null;
   } else if (product.Grupos_variacao?.[0]?.Opcoes && product.Grupos_variacao[0].Opcoes.length > 1) {
     const secondOpt = product.Grupos_variacao[0].Opcoes[1];
-    img2 = secondOpt.Foto_destaque || secondOpt.Foto || null;
+    img2 = secondOpt.Foto || null;
   }
 
   // Evita duplicar a mesma foto no hover caso sejam idênticas
