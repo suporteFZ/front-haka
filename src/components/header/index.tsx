@@ -82,7 +82,8 @@ export default function Header({ globalData }: HeaderProps) {
 
   // Layout compacto ativa no scroll, no mega menu, na busca, no carrinho ou sempre na PDP/Categoria/Busca
   const isCompactLayout = isScrolled || isMegaMenuOpen || isSearchOpen || isCartOpen || Boolean(isWhiteBgPage);
-  const currentLogo = isCompactLayout ? logoPretaUrl : logoBrancaUrl;
+  const currentLogo = isCompactLayout ? (logoPretaUrl || logoBrancaUrl) : (logoBrancaUrl || logoPretaUrl);
+  const fallbackLogoPreta = logoPretaUrl || logoBrancaUrl;
   const contentWidth = isCompactLayout ? "w-[calc(100%-34px)] md:w-[90%] max-w-5xl" : "w-full max-w-[1600px]";
   const logoSize = isCompactLayout ? 34 : 40;
 
@@ -160,7 +161,7 @@ export default function Header({ globalData }: HeaderProps) {
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         globalData={globalData}
-        currentLogo={logoPretaUrl} // O painel branco sempre usa a logo preta
+        currentLogo={fallbackLogoPreta} // O painel branco sempre usa a logo preta
         logoSize={logoSize}
         contentWidth={contentWidth}
       />
@@ -170,7 +171,7 @@ export default function Header({ globalData }: HeaderProps) {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         whatsappNumber={globalData.Whatsapp_numero}
-        currentLogo={logoPretaUrl}
+        currentLogo={fallbackLogoPreta}
         logoSize={logoSize}
         contentWidth={contentWidth}
       />

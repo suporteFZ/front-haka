@@ -72,15 +72,19 @@ export default function MobileCart({
           <div
             className={`flex items-center justify-between h-12 md:h-16 px-[17px] mt-4 md:mt-6 w-full ${contentWidth}`}
           >
-            <Link href="/" onClick={onClose}>
-              <Image
-                src={currentLogo}
-                alt="Logo"
-                width={logoSize}
-                height={logoSize}
-                style={{ height: "auto" }}
-                className="object-contain w-5 h-auto"
-              />
+            <Link href="/" onClick={onClose} className="flex items-center">
+              {currentLogo ? (
+                <Image
+                  src={currentLogo}
+                  alt="Logo"
+                  width={logoSize}
+                  height={logoSize}
+                  style={{ height: "auto" }}
+                  className="object-contain w-5 h-auto"
+                />
+              ) : (
+                <span className="font-bold tracking-widest text-base text-black">HAKA</span>
+              )}
             </Link>
 
             <div className="flex items-center gap-6">

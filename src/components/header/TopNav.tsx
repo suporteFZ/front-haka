@@ -47,16 +47,22 @@ export default function TopNav({
       {/* LOGO */}
       <div className="flex-shrink-0 z-[60] flex items-center">
         <Link href="/" onClick={handleLogoClick} className="flex items-center">
-          <Image
-            src={currentLogo}
-            alt="Haka Logo"
-            width={logoSize}
-            height={logoSize}
-            style={{ height: "auto" }}
-            className={`object-contain transition-all duration-500 ease-in-out relative w-6 ${
-              isCompactLayout ? "md:w-[34px]" : "md:w-[40px]"
-            } h-auto`}
-          />
+          {currentLogo ? (
+            <Image
+              src={currentLogo}
+              alt="Haka Logo"
+              width={logoSize}
+              height={logoSize}
+              style={{ height: "auto" }}
+              className={`object-contain transition-all duration-500 ease-in-out relative w-6 ${
+                isCompactLayout ? "md:w-[34px]" : "md:w-[40px]"
+              } h-auto`}
+            />
+          ) : (
+            <span className={`font-bold tracking-widest text-lg ${isCompactLayout ? "text-black" : "text-white"}`}>
+              HAKA
+            </span>
+          )}
         </Link>
       </div>
 
