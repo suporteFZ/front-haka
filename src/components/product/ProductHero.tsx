@@ -257,27 +257,19 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const currentGallery: MediaItem[] = useMemo(() => {
     const photos: MediaItem[] = [];
 
-    // 0. Fotos da cor do revestimento ativo (3 camadas)
-    if (hasRevestimentos && selectedCorRevestimento) {
-      const revPhotos: any[] = selectedCorRevestimento.Galeria && selectedCorRevestimento.Galeria.length > 0
-        ? selectedCorRevestimento.Galeria
-        : selectedCorRevestimento.Miniatura ? [selectedCorRevestimento.Miniatura] : [];
-
-      for (const img of revPhotos) {
-        if (!photos.some((p) => p.url === img.url)) {
-          photos.push(img);
+    // 0. Fotos da cor do revestimento ativo (apenas do campo Galeria)
+    if (hasRevestimentos && selectedCorRevestimento?.Galeria && Array.isArray(selectedCorRevestimento.Galeria)) {
+      for (const img of selectedCorRevestimento.Galeria) {
+        if (img?.url && !photos.some((p) => p.url === img.url)) {
+          photos.push(img as MediaItem);
         }
       }
     }
 
-    // 1. Fotos da cor/variação ativa da cadeira (cadeiras pré-setadas como Elements)
-    if (currentVariation) {
-      const varPhotos: MediaItem[] = currentVariation?.Galeria && currentVariation.Galeria.length > 0
-        ? currentVariation.Galeria
-        : currentVariation?.Miniatura ? [currentVariation.Miniatura] : [];
-
-      for (const img of varPhotos) {
-        if (!photos.some((p) => p.url === img.url)) {
+    // 1. Fotos da cor/variação ativa da cadeira (apenas do campo Galeria)
+    if (currentVariation?.Galeria && Array.isArray(currentVariation.Galeria)) {
+      for (const img of currentVariation.Galeria) {
+        if (img?.url && !photos.some((p) => p.url === img.url)) {
           photos.push(img);
         }
       }
@@ -292,7 +284,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
       }
     }
 
-    // 3. Fotos das opções selecionadas nos grupos (se houver)
+    // 3. Fotos das opções selecionadas nos grupos (apenas do campo Galeria)
     if (hasVariationGroups) {
       Object.values(selectedGroupOptions).forEach((opt: any) => {
         if (opt.Galeria && Array.isArray(opt.Galeria)) {
@@ -301,9 +293,6 @@ export default function ProductHero({ product }: ProductHeroProps) {
               photos.push(img);
             }
           });
-        }
-        if (opt.Foto && !photos.some((p) => p.url === opt.Foto.url)) {
-          photos.push(opt.Foto);
         }
       });
     }
