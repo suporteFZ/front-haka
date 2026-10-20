@@ -347,6 +347,15 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const activeImage = currentGallery[activeImageIndex] || currentGallery[0];
   const activeImageUrl = activeImage ? getStrapiMedia(activeImage.url) : null;
 
+  // Imagem de miniatura para o botão flutuante / cápsula
+  const floatingBtnThumbUrl =
+    (selectedCorRevestimento?.Miniatura?.url && getStrapiMedia(selectedCorRevestimento.Miniatura.url)) ||
+    (selectedCorRevestimento?.Galeria?.[0]?.url && getStrapiMedia(selectedCorRevestimento.Galeria[0].url)) ||
+    (currentVariation?.Miniatura?.url && getStrapiMedia(currentVariation.Miniatura.url)) ||
+    (currentVariation?.Galeria?.[0]?.url && getStrapiMedia(currentVariation.Galeria[0].url)) ||
+    (product.Galeria?.[0]?.url && getStrapiMedia(product.Galeria[0].url)) ||
+    activeImageUrl;
+
   // Sincroniza a imagem ativa com o contexto global do produto (para Compre Junto, etc.)
   useEffect(() => {
     if (productCtx && activeImageUrl) {
@@ -1606,10 +1615,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     : "w-11 h-11 md:w-12 md:h-12 pointer-events-none"
                 }`}
               >
-                {currentVariation?.Miniatura ? (
+                {floatingBtnThumbUrl ? (
                   <div className="relative w-6 h-6 md:w-7 md:h-7">
                     <Image
-                      src={getStrapiMedia(currentVariation.Miniatura.url) || ""}
+                      src={floatingBtnThumbUrl}
                       alt={product.Nome}
                       fill
                       className="object-contain"
