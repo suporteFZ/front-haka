@@ -301,8 +301,8 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     ? "w-[210px] sm:w-[230px] md:w-[245px] xl:w-[275px]"
     : "w-[280px] md:w-[310px] lg:w-[330px] xl:w-[350px]";
   const cardMinHeightClass = isThreeProducts
-    ? "min-h-[420px] md:min-h-[460px]"
-    : "min-h-[450px] md:min-h-[490px]";
+    ? "min-h-[400px] md:min-h-[440px]"
+    : "min-h-[430px] md:min-h-[470px]";
   const imageHeightClass = isThreeProducts
     ? "h-[175px] md:h-[210px]"
     : "h-[220px] md:h-[250px]";
@@ -318,7 +318,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
           {/* Lado Esquerdo: Cards dos produtos separados por + e = */}
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-4 xl:gap-5 shrink-0 overflow-x-auto no-scrollbar max-w-full pb-2 lg:pb-0">
 
-            {/* Card 1: Produto Principal */}
+            {/* Card 1: Produto Principal (Reflete a opção selecionada no Hero acima, sem dropdown) */}
             <div className={`${cardWidthClass} bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 flex flex-col justify-between ${cardMinHeightClass} shrink-0`}>
               <div className={`relative w-full ${imageHeightClass} flex items-center justify-center p-2`}>
                 {productMainImg ? (
@@ -341,6 +341,11 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                 <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] mt-1 line-clamp-1" title={product.Nome}>
                   {product.Nome}
                 </h3>
+                {productCtx?.selectedConfiguracao && (
+                  <span className="text-[11px] font-sans text-[#69736B] mt-0.5 line-clamp-1" title={productCtx.selectedConfiguracao.Nome}>
+                    Modelo: <strong className="text-black font-medium">{productCtx.selectedConfiguracao.Nome}</strong>
+                  </span>
+                )}
                 <div className="mt-2 flex flex-col">
                   {isMainQuoteOnly ? (
                     <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
@@ -357,48 +362,6 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                     </>
                   )}
                 </div>
-
-                {/* Dropdown de Modelo do Produto Principal (se houver mais de 1 modelo) */}
-                {productCtx?.hasConfiguracoes && productCtx.configuracoes.length > 1 ? (
-                  <div className="mt-3 pt-2.5 border-t border-gray-100 flex flex-col">
-                    <label className="text-[11px] font-sans font-medium text-[#69736B] mb-1 flex items-center justify-between">
-                      <span>Modelo</span>
-                      <span className="text-[10px] text-stone-400 font-normal">
-                        {productCtx.configuracoes.length} opções
-                      </span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={productCtx.selectedConfiguracao?.id ? String(productCtx.selectedConfiguracao.id) : (productCtx.selectedConfiguracao?.Nome || "")}
-                        onChange={(e) => {
-                          const found = productCtx.configuracoes.find(
-                            (c: any) => String(c.id) === e.target.value || c.Nome === e.target.value
-                          );
-                          if (found) productCtx.selectConfiguracao(found);
-                        }}
-                        className="w-full bg-[#F7F7F8] hover:bg-[#F2F2F4] border border-[#E5E7EB] hover:border-gray-400 rounded-lg px-2.5 py-1.5 text-[12px] font-sans font-medium text-[#000000] appearance-none focus:outline-none focus:border-black pr-7 truncate cursor-pointer transition-colors shadow-2xs"
-                      >
-                        {productCtx.configuracoes.map((c: any) => (
-                          <option key={c.id || c.Nome} value={c.id ? String(c.id) : c.Nome}>
-                            {c.Nome}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-stone-500">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                ) : productCtx?.selectedConfiguracao ? (
-                  <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] font-sans text-stone-500">
-                    <span>Modelo:</span>
-                    <span className="font-medium text-black truncate max-w-[170px]" title={productCtx.selectedConfiguracao.Nome}>
-                      {productCtx.selectedConfiguracao.Nome}
-                    </span>
-                  </div>
-                ) : null}
               </div>
             </div>
 
@@ -410,18 +373,22 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                   +
                 </span>
 
-                {/* Card Complementar */}
+                {/* Card Complementar com link em todo o card, exceto no dropdown */}
                 <div
-                  className={`${cardWidthClass} bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 hover:border-gray-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between ${cardMinHeightClass} shrink-0`}
+                  className={`${cardWidthClass} relative bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 hover:border-gray-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between ${cardMinHeightClass} shrink-0 group`}
                 >
-                  {/* Imagem clicável que leva à página do produto */}
+                  {/* Link cobrindo todo o card (z-0) */}
                   <Link
                     href={comp.href}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="absolute inset-0 z-0 rounded-[16px] md:rounded-[20px]"
+                    aria-label={`Ver detalhes de ${comp.name}`}
                     title={`Ver detalhes de ${comp.name}`}
-                    className={`relative w-full ${imageHeightClass} flex items-center justify-center p-2 cursor-pointer group`}
-                  >
+                  />
+
+                  {/* Foto do produto */}
+                  <div className={`relative z-1 w-full ${imageHeightClass} flex items-center justify-center p-2 pointer-events-none`}>
                     {comp.imageUrl ? (
                       <Image
                         src={comp.imageUrl}
@@ -433,37 +400,67 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                     ) : (
                       <div className="text-gray-300 font-sans text-xs">Sem imagem</div>
                     )}
-                  </Link>
+                  </div>
 
-                  <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col">
+                  {/* Área inferior: Dropdown de Modelo (entre a foto e o nome) + Marca + Nome + Preço */}
+                  <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col pointer-events-none">
+                    {/* Dropdown de Modelo: posicionado entre a foto e o nome */}
+                    {comp.configurations.length > 1 && (
+                      <div
+                        className="relative z-10 mb-2.5 pointer-events-auto"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <label className="text-[10px] md:text-[11px] font-sans font-medium text-[#69736B] mb-1 flex items-center justify-between">
+                          <span>Modelo</span>
+                          <span className="text-[10px] text-stone-400 font-normal">
+                            {comp.configurations.length} opções
+                          </span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={comp.selectedConfig?.id ? String(comp.selectedConfig.id) : (comp.selectedConfig?.Nome || "")}
+                            onChange={(e) => {
+                              setSelectedConfigMap((prev) => ({
+                                ...prev,
+                                [comp.product.id]: e.target.value,
+                              }));
+                            }}
+                            className="w-full bg-[#F7F7F8] hover:bg-[#F2F2F4] border border-[#E5E7EB] hover:border-gray-400 rounded-lg px-2.5 py-1.5 text-[11px] md:text-[12px] font-sans font-medium text-[#000000] appearance-none focus:outline-none focus:border-black pr-7 truncate cursor-pointer transition-colors shadow-2xs"
+                          >
+                            {comp.configurations.map((c: any) => (
+                              <option key={c.id || c.Nome} value={c.id ? String(c.id) : c.Nome}>
+                                {c.Nome}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-stone-500">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Marca */}
                     <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
                       {comp.brand}
                     </span>
+
+                    {/* Nome do Produto com ícone externo */}
                     <div className="flex items-center justify-between gap-1 mt-1">
-                      <Link
-                        href={comp.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] line-clamp-1 hover:underline"
-                        title={comp.name}
-                      >
+                      <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] line-clamp-1 group-hover:underline" title={comp.name}>
                         {comp.name}
-                      </Link>
-                      <Link
-                        href={comp.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Abrir página do produto"
-                        className="text-stone-400 hover:text-black transition-colors"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                          <polyline points="15 3 21 3 21 9"></polyline>
-                          <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                      </Link>
+                      </h3>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-stone-400 group-hover:text-black transition-colors">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
                     </div>
 
+                    {/* Preço */}
                     <div className="mt-2 flex flex-col">
                       {comp.isQuoteOnly ? (
                         <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
@@ -480,48 +477,6 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                         </>
                       )}
                     </div>
-
-                    {/* Dropdown de Modelo do Produto Complementar */}
-                    {comp.configurations.length > 1 ? (
-                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex flex-col">
-                        <label className="text-[11px] font-sans font-medium text-[#69736B] mb-1 flex items-center justify-between">
-                          <span>Modelo</span>
-                          <span className="text-[10px] text-stone-400 font-normal">
-                            {comp.configurations.length} opções
-                          </span>
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={comp.selectedConfig?.id ? String(comp.selectedConfig.id) : (comp.selectedConfig?.Nome || "")}
-                            onChange={(e) => {
-                              setSelectedConfigMap((prev) => ({
-                                ...prev,
-                                [comp.product.id]: e.target.value,
-                              }));
-                            }}
-                            className="w-full bg-[#F7F7F8] hover:bg-[#F2F2F4] border border-[#E5E7EB] hover:border-gray-400 rounded-lg px-2.5 py-1.5 text-[12px] font-sans font-medium text-[#000000] appearance-none focus:outline-none focus:border-black pr-7 truncate cursor-pointer transition-colors shadow-2xs"
-                          >
-                            {comp.configurations.map((c: any) => (
-                              <option key={c.id || c.Nome} value={c.id ? String(c.id) : c.Nome}>
-                                {c.Nome}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-stone-500">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                    ) : comp.selectedConfig ? (
-                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] font-sans text-stone-500">
-                        <span>Modelo:</span>
-                        <span className="font-medium text-black truncate max-w-[170px]" title={comp.selectedConfig.Nome}>
-                          {comp.selectedConfig.Nome}
-                        </span>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               </React.Fragment>
@@ -632,37 +587,11 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
               <span className="w-1.5 h-1.5 rounded-full bg-black shrink-0 mt-1.5" />
               <span className="leading-tight font-medium">1x {product.Nome}</span>
             </div>
-            {productCtx?.hasConfiguracoes && productCtx.configuracoes.length > 1 ? (
-              <div className="pl-3.5 mt-0.5">
-                <div className="relative max-w-[260px]">
-                  <select
-                    value={productCtx.selectedConfiguracao?.id ? String(productCtx.selectedConfiguracao.id) : (productCtx.selectedConfiguracao?.Nome || "")}
-                    onChange={(e) => {
-                      const found = productCtx.configuracoes.find(
-                        (c: any) => String(c.id) === e.target.value || c.Nome === e.target.value
-                      );
-                      if (found) productCtx.selectConfiguracao(found);
-                    }}
-                    className="w-full bg-[#F7F7F8] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 text-[11px] font-sans font-medium text-black appearance-none pr-6 truncate"
-                  >
-                    {productCtx.configuracoes.map((c: any) => (
-                      <option key={c.id || c.Nome} value={c.id ? String(c.id) : c.Nome}>
-                        {c.Nome}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-stone-500">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            ) : productCtx?.selectedConfiguracao ? (
+            {productCtx?.selectedConfiguracao && (
               <span className="pl-3.5 text-[11px] text-[#69736B]">
                 Modelo: {productCtx.selectedConfiguracao.Nome}
               </span>
-            ) : null}
+            )}
           </li>
 
           {complementaryList.map((comp, idx) => (
@@ -684,7 +613,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                 </Link>
               </div>
 
-              {comp.configurations.length > 1 ? (
+              {comp.configurations.length > 1 && (
                 <div className="pl-3.5 mt-0.5">
                   <div className="relative max-w-[260px]">
                     <select
@@ -710,11 +639,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                     </div>
                   </div>
                 </div>
-              ) : comp.selectedConfig ? (
-                <span className="pl-3.5 text-[11px] text-[#69736B]">
-                  Modelo: {comp.selectedConfig.Nome}
-                </span>
-              ) : null}
+              )}
             </li>
           ))}
         </ul>
