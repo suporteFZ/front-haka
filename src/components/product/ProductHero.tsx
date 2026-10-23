@@ -716,37 +716,6 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
   const cart = useCart();
 
-  const handleQuoteRequest = () => {
-    const configLines: string[] = [];
-    if (hasConfiguracoes && selectedConfiguracao) {
-      configLines.push(`• Modelo: ${selectedConfiguracao.Nome}${!isQuoteOnly && selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedConfiguracao.Preco_adicional))})` : ""}`);
-    }
-    if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
-      configLines.push(`• Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})${selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedCorRevestimento.Preco_adicional))})` : ""}`);
-    }
-    if (!isQuoteOnly && availableColors.length > 0 && selectedColor) {
-      configLines.push(`• Cor: ${selectedColor}`);
-    }
-    if (!isQuoteOnly && hasVariationGroups) {
-      Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
-        configLines.push(`• ${groupTitle}: ${opt.Nome}${opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? ` (+${formatBRL(Number(opt.Preco_adicional))})` : ""}`);
-      });
-    }
-    if (!isQuoteOnly && hasMedidas && selectedMedida) {
-      configLines.push(`• Medida: ${selectedMedida.Titulo}${selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedMedida.Preco_adicional))})` : ""}`);
-    }
-
-    const configDetails = configLines.length > 0 ? configLines.join("\n") : "";
-    const variationLabel = productCtx?.variationDisplayName || (selectedConfiguracao ? `Modelo: ${selectedConfiguracao.Nome}` : (currentVariation?.Nome_cor ? `Cor: ${currentVariation.Nome_cor}` : ""));
-
-    const msg = `Olá! Gostaria de solicitar um orçamento para o produto: *${product.Nome}*${configLines.length > 0
-        ? `\n\n*Configurações Escolhidas:*\n${configDetails}`
-        : (variationLabel ? ` (Variação: ${variationLabel})` : "")
-      } - Quantidade: ${quantity}.`;
-    const whatsappUrl = `https://wa.me/554530550000?text=${encodeURIComponent(msg)}`;
-    window.open(whatsappUrl, "_blank");
-  };
-
   const handleAddToCart = () => {
     const thumbUrl = hasConfiguracoes && selectedConfiguracao?.Galeria?.[0]
       ? getStrapiMedia(selectedConfiguracao.Galeria[0].url)
@@ -1875,7 +1844,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   Sob consulta
                 </span>
                 <p className="text-[11px] font-sans text-[#69736B] italic mt-1.5 leading-snug">
-                  Entre em contato para solicitar um orçamento personalizado deste produto
+                  Adicione ao carrinho para solicitar seu orçamento personalizado deste produto
                 </p>
               </div>
             ) : (
@@ -1958,7 +1927,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   }
                   : undefined
               }
-              title={!isFloatingBarOpen ? (isQuoteOnly ? "Solicitar orçamento" : "Ver informações e comprar") : undefined}
+              title={!isFloatingBarOpen ? (isQuoteOnly ? "Adicionar ao carrinho" : "Ver informações e comprar") : undefined}
             >
               {/* Ícone / Miniatura */}
               <button

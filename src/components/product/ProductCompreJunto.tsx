@@ -170,7 +170,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     return product.Preco || product.Preco_promocional || 0;
   }, [product, productCtx?.selectedPrice]);
 
-  const isMainQuoteOnly = !productMainPrice || productMainPrice <= 0;
+  const isMainQuoteOnly = Boolean(productCtx?.isQuoteOnly) || !productMainPrice || productMainPrice <= 0;
   const isBundleQuoteOnly = isMainQuoteOnly || complementaryList.some((c) => c.isQuoteOnly);
   const productMainInstallments = product.Parcelas || 10;
 
@@ -181,23 +181,46 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     ? bundleTotalOriginal * (1 - bundleDiscountPercent / 100)
     : bundleTotalOriginal;
 
-  const handleBundleQuote = () => {
-    const allNames = [product.Nome, ...complementaryList.map((c) => c.name)].join(" + ");
-    const msg = `Olá! Gostaria de solicitar um orçamento para o combo: ${allNames}.`;
-    const whatsappUrl = `https://wa.me/554530550000?text=${encodeURIComponent(msg)}`;
-    window.open(whatsappUrl, "_blank");
-  };
-
   const handleAddBundleToCart = () => {
-    // 1. Adiciona o produto principal
-    const mainVariation = product.Variacoes?.[0];
+    // 1. Adiciona o produto principal com opções selecionadas
+    const options: string[] = [];
+    if (productCtx?.hasConfiguracoes && productCtx.selectedConfiguracao) {
+      options.push(`Modelo: ${productCtx.selectedConfiguracao.Nome}`);
+    }
+    if (!isMainQuoteOnly && productCtx?.hasRevestimentos && productCtx.selectedRevestimento && productCtx.selectedCorRevestimento) {
+      options.push(`Revestimento: ${productCtx.selectedRevestimento.Nome} (${productCtx.selectedCorRevestimento.Nome_cor})`);
+    }
+    if (!isMainQuoteOnly && productCtx?.availableColors && productCtx.availableColors.length > 0 && productCtx.selectedColor) {
+      options.push(`Cor: ${productCtx.selectedColor}`);
+    } else if (!isMainQuoteOnly && !productCtx?.hasRevestimentos && product.Variacoes?.[0]?.Nome_cor) {
+      options.push(`Cor: ${product.Variacoes[0].Nome_cor}`);
+    }
+    if (!isMainQuoteOnly && productCtx?.hasVariationGroups && productCtx.selectedGroupOptions) {
+      Object.entries(productCtx.selectedGroupOptions).forEach(([groupTitle, opt]) => {
+        options.push(`${groupTitle}: ${opt.Nome}`);
+      });
+    }
+    if (!isMainQuoteOnly && productCtx?.hasMedidas && productCtx.selectedMedida) {
+      options.push(`Medida: ${productCtx.selectedMedida.Titulo}`);
+    }
+
+    const mainVariationLabel = options.length > 0
+      ? options.join(" • ")
+      : (productCtx?.variationDisplayName || product.Variacoes?.[0]?.Nome_cor || "Padrão");
+
+    const configKey = productCtx?.selectedConfiguracao ? `cfg:${productCtx.selectedConfiguracao.Nome}` : "";
+    const mainCartId = isMainQuoteOnly
+      ? `${product.id}-quote-${configKey}-0`
+      : `${product.id}-${mainVariationLabel}-0`;
+
     cart.addItem({
-      id: `${product.id}-${mainVariation?.Nome_cor || "default"}-0`,
+      id: mainCartId,
       productId: product.id,
       name: product.Nome,
       slug: product.slug || product.Nome.toLowerCase(),
-      variationName: mainVariation?.Nome_cor || "Padrão",
-      price: productMainPrice,
+      variationName: mainVariationLabel,
+      options: options.length > 0 ? options : undefined,
+      price: isMainQuoteOnly ? 0 : productMainPrice,
       isQuoteOnly: isMainQuoteOnly,
       imageUrl: productMainImg,
       quantity: 1,
@@ -206,12 +229,14 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     // 2. Adiciona cada produto complementar
     complementaryList.forEach((comp) => {
       cart.addItem({
-        id: `${comp.product.id}-${comp.variation?.Nome_cor || "default"}-0`,
+        id: comp.isQuoteOnly
+          ? `${comp.product.id}-quote-${comp.variation?.Nome_cor || "default"}-0`
+          : `${comp.product.id}-${comp.variation?.Nome_cor || "default"}-0`,
         productId: comp.product.id,
         name: comp.name,
         slug: comp.product.slug || comp.product.Nome.toLowerCase(),
         variationName: comp.variation?.Nome_cor || "Padrão",
-        price: comp.price,
+        price: comp.isQuoteOnly ? 0 : comp.price,
         isQuoteOnly: comp.isQuoteOnly,
         imageUrl: comp.imageUrl,
         quantity: 1,
@@ -410,24 +435,14 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
               )}
             </div>
 
-            {/* Botão Adicionar Combo / Orçamento */}
-            {isBundleQuoteOnly ? (
-              <button
-                type="button"
-                onClick={handleBundleQuote}
-                className="mt-4 py-3 px-6 rounded-full bg-[#222222] hover:bg-[#000000] text-white text-[13px] font-sans font-medium transition-all duration-200 active:scale-[0.99] shadow-xs cursor-pointer text-center"
-              >
-                Solicitar orçamento do combo
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleAddBundleToCart}
-                className="mt-4 py-3 px-6 rounded-full bg-[#222222] hover:bg-[#000000] text-white text-[13px] font-sans font-medium transition-all duration-200 active:scale-[0.99] shadow-xs cursor-pointer text-center"
-              >
-                Adicionar combo ao carrinho
-              </button>
-            )}
+            {/* Botão Adicionar Combo ao Carrinho */}
+            <button
+              type="button"
+              onClick={handleAddBundleToCart}
+              className="mt-4 py-3 px-6 rounded-full bg-[#222222] hover:bg-[#000000] text-white text-[13px] font-sans font-medium transition-all duration-200 active:scale-[0.99] shadow-xs cursor-pointer text-center"
+            >
+              Adicionar combo ao carrinho
+            </button>
           </div>
 
         </div>
@@ -488,23 +503,14 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
           )}
         </div>
 
-        {isBundleQuoteOnly ? (
-          <button
-            type="button"
-            onClick={handleBundleQuote}
-            className="mt-3.5 w-full py-3 px-6 rounded-full bg-[#000000] hover:bg-neutral-800 text-white text-[13px] font-sans font-medium transition-all duration-200 active:scale-[0.99] shadow-xs cursor-pointer text-center"
-          >
-            Solicitar orçamento do combo
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleAddBundleToCart}
-            className="mt-3.5 w-full py-3 px-6 rounded-full bg-[#000000] hover:bg-neutral-800 text-white text-[13px] font-sans font-medium transition-all duration-200 active:scale-[0.99] shadow-xs cursor-pointer text-center"
-          >
-            Adicionar combo ao carrinho
-          </button>
-        )}
+        {/* Botão Adicionar Combo ao Carrinho (Mobile) */}
+        <button
+          type="button"
+          onClick={handleAddBundleToCart}
+          className="mt-3.5 w-full py-3 px-6 rounded-full bg-[#000000] hover:bg-neutral-800 text-white text-[13px] font-sans font-medium transition-all duration-200 active:scale-[0.99] shadow-xs cursor-pointer text-center"
+        >
+          Adicionar combo ao carrinho
+        </button>
       </div>
     </section>
   );
