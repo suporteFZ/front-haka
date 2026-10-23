@@ -131,6 +131,14 @@ export function ProductProvider({
 }) {
   // Verifica antecipadamente se o produto possui algum preço base ou se é estritamente "Sob consulta"
   const isProductQuoteOnly = useMemo(() => {
+    // 0. Preço em configurações
+    if (product?.Configuracoes && Array.isArray(product.Configuracoes)) {
+      for (const c of product.Configuracoes) {
+        if (c.Preco && Number(c.Preco) > 0) return false;
+        if (c.Preco_promocional && Number(c.Preco_promocional) > 0) return false;
+      }
+    }
+
     // 1. Preço na raiz do produto
     if (product?.Preco && Number(product.Preco) > 0) return false;
     if (product?.Preco_promocional && Number(product.Preco_promocional) > 0) return false;
@@ -169,6 +177,14 @@ export function ProductProvider({
       }
     }
 
+    // 5. Preço em opções de medidas
+    if (product?.Opcoes_medida && Array.isArray(product.Opcoes_medida)) {
+      for (const m of product.Opcoes_medida) {
+        if (m.Preco && Number(m.Preco) > 0) return false;
+        if (m.Preco_promocional && Number(m.Preco_promocional) > 0) return false;
+      }
+    }
+
     return true;
   }, [product]);
 
@@ -184,8 +200,13 @@ export function ProductProvider({
   const [selectedRevestimento, setSelectedRevestimento] = useState<Revestimento | null>(null);
   const [selectedCorRevestimento, setSelectedCorRevestimento] = useState<CorRevestimento | null>(null);
 
-  // Inicializa o primeiro revestimento e sua primeira cor
+  // Inicializa o primeiro revestimento e sua primeira cor (apenas se tiver preço/não for sob consulta)
   useEffect(() => {
+    if (isProductQuoteOnly) {
+      setSelectedRevestimento(null);
+      setSelectedCorRevestimento(null);
+      return;
+    }
     if (revestimentos.length > 0) {
       const firstRev = revestimentos[0];
       setSelectedRevestimento(firstRev);
@@ -198,12 +219,13 @@ export function ProductProvider({
       setSelectedRevestimento(null);
       setSelectedCorRevestimento(null);
     }
-  }, [revestimentos]);
+  }, [revestimentos, isProductQuoteOnly]);
 
   const selectRevestimentoAndCor = useCallback((rev: Revestimento, cor: CorRevestimento) => {
+    if (isProductQuoteOnly) return;
     setSelectedRevestimento(rev);
     setSelectedCorRevestimento(cor);
-  }, []);
+  }, [isProductQuoteOnly]);
 
   // -------------------------------------------------------------------------
   // 1.5. CONFIGURAÇÕES / MODELOS PRINCIPAIS DA LINHA
@@ -254,8 +276,12 @@ export function ProductProvider({
 
   const [selectedGroupOptions, setSelectedGroupOptions] = useState<Record<string, VariationOption>>({});
 
-  // Inicializa a seleção de cada grupo com a 1ª opção cadastrada
+  // Inicializa a seleção de cada grupo com a 1ª opção cadastrada (apenas se não for sob consulta)
   useEffect(() => {
+    if (isProductQuoteOnly) {
+      setSelectedGroupOptions({});
+      return;
+    }
     if (variationGroups.length > 0) {
       const initial: Record<string, VariationOption> = {};
       variationGroups.forEach((group) => {
@@ -267,19 +293,20 @@ export function ProductProvider({
     } else {
       setSelectedGroupOptions({});
     }
-  }, [variationGroups]);
+  }, [variationGroups, isProductQuoteOnly]);
 
   const selectGroupOption = useCallback((groupTitle: string, option: VariationOption) => {
+    if (isProductQuoteOnly) return;
     setSelectedGroupOptions((prev) => ({
       ...prev,
       [groupTitle]: option,
     }));
-  }, []);
+  }, [isProductQuoteOnly]);
 
   // Foto representativa dos grupos (caso a opção selecionada tenha Galeria, Foto_destaque ou Foto)
   // Foto da opção ativa de grupos (apenas da Galeria)
   const activeGroupPhotoUrl = useMemo(() => {
-    if (!hasVariationGroups) return null;
+    if (!hasVariationGroups || isProductQuoteOnly) return null;
     const opts = Object.values(selectedGroupOptions);
     for (const opt of opts) {
       if (opt.Galeria && opt.Galeria.length > 0 && opt.Galeria[0]?.url) {
@@ -287,7 +314,7 @@ export function ProductProvider({
       }
     }
     return null;
-  }, [hasVariationGroups, selectedGroupOptions]);
+  }, [hasVariationGroups, selectedGroupOptions, isProductQuoteOnly]);
 
   // -------------------------------------------------------------------------
   // 2.5. OPÇÕES DE MEDIDAS (Tamanhos e Dimensões: ex: Mesas 100cm, 120cm)
@@ -300,12 +327,16 @@ export function ProductProvider({
   const [selectedMedida, setSelectedMedida] = useState<OpcaoMedida | null>(null);
 
   useEffect(() => {
+    if (isProductQuoteOnly) {
+      setSelectedMedida(null);
+      return;
+    }
     if (medidas.length > 0) {
       setSelectedMedida(medidas[0]);
     } else {
       setSelectedMedida(null);
     }
-  }, [medidas]);
+  }, [medidas, isProductQuoteOnly]);
 
   // -------------------------------------------------------------------------
   // 3. VARIAÇÕES TRADICIONAIS (COR DIRETA COM GALERIA DE FOTOS) - FALLBACK
@@ -339,12 +370,16 @@ export function ProductProvider({
 
   // Inicializa a seleção tradicional ao carregar o produto
   useEffect(() => {
+    if (isProductQuoteOnly) {
+      setSelectedColorState(null);
+      return;
+    }
     if (availableColors.length > 0) {
       setSelectedColorState(availableColors[0].name);
     } else {
       setSelectedColorState(null);
     }
-  }, [availableColors]);
+  }, [availableColors, isProductQuoteOnly]);
 
   // Resolve a variação tradicional selecionada com base na cor escolhida
   const selectedVariation = useMemo(() => {
@@ -475,7 +510,7 @@ export function ProductProvider({
     return base > 0 ? base + totalAdditional : 0;
   }, [hasRevestimentos, selectedCorRevestimento, hasConfiguracoes, selectedConfiguracao, hasMedidas, selectedMedida, selectedVariation, product, hasVariationGroups, selectedGroupOptions]);
 
-  const isQuoteOnly = selectedPrice <= 0;
+  const isQuoteOnly = isProductQuoteOnly || selectedPrice <= 0;
 
   // Nome legível da variação ativa (combina Configuração + Revestimento/Cor + Grupos modulares + Medidas)
   const variationDisplayName = useMemo(() => {

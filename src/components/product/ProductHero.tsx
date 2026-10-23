@@ -49,6 +49,7 @@ interface ProductHeroProps {
     Imagem_destaque?: MediaItem;
     Galeria?: MediaItem[];
     Variacoes?: Variation[];
+    Configuracoes?: ConfiguracaoItem[];
     Opcoes_medida?: OpcaoMedida[];
     Revestimentos?: Revestimento[];
     Grupos_variacao?: VariationGroup[];
@@ -100,11 +101,69 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const productCtx = useProduct();
   const variations = product.Variacoes || [];
 
+  // Verifica antecipadamente se o produto é estritamente sob consulta
+  const isProductQuoteOnly = useMemo(() => {
+    // 0. Preço em configurações
+    if (product.Configuracoes && Array.isArray(product.Configuracoes)) {
+      for (const c of product.Configuracoes) {
+        if (c.Preco && Number(c.Preco) > 0) return false;
+        if (c.Preco_promocional && Number(c.Preco_promocional) > 0) return false;
+      }
+    }
+    // 1. Preço raiz
+    if (product.Preco && Number(product.Preco) > 0) return false;
+    if (product.Preco_promocional && Number(product.Preco_promocional) > 0) return false;
+
+    // 2. Variações tradicionais
+    if (product.Variacoes && Array.isArray(product.Variacoes)) {
+      for (const v of product.Variacoes) {
+        if (v.Preco && Number(v.Preco) > 0) return false;
+        if (v.Preco_promocional && Number(v.Preco_promocional) > 0) return false;
+        if (v.Preco_diferenciado && Number(v.Preco_diferenciado) > 0) return false;
+      }
+    }
+
+    // 3. Revestimentos
+    if (product.Revestimentos && Array.isArray(product.Revestimentos)) {
+      for (const r of product.Revestimentos) {
+        if (r.Cores && Array.isArray(r.Cores)) {
+          for (const c of r.Cores) {
+            if (c.Preco && Number(c.Preco) > 0) return false;
+            if (c.Preco_promocional && Number(c.Preco_promocional) > 0) return false;
+            if (c.Preco_diferenciado && Number(c.Preco_diferenciado) > 0) return false;
+          }
+        }
+      }
+    }
+
+    // 4. Grupos de variação
+    if (product.Grupos_variacao && Array.isArray(product.Grupos_variacao)) {
+      for (const g of product.Grupos_variacao) {
+        if (g.Opcoes && Array.isArray(g.Opcoes)) {
+          for (const o of g.Opcoes) {
+            if (o.Preco && Number(o.Preco) > 0) return false;
+            if (o.Preco_promocional && Number(o.Preco_promocional) > 0) return false;
+          }
+        }
+      }
+    }
+
+    // 5. Opções de medida
+    if (product.Opcoes_medida && Array.isArray(product.Opcoes_medida)) {
+      for (const m of product.Opcoes_medida) {
+        if (m.Preco && Number(m.Preco) > 0) return false;
+        if (m.Preco_promocional && Number(m.Preco_promocional) > 0) return false;
+      }
+    }
+
+    return true;
+  }, [product]);
+
   // Revestimentos em 3 Camadas (Material -> Cores com fotos e preços)
   const hasRevestimentos = productCtx?.hasRevestimentos || (product.Revestimentos && product.Revestimentos.length > 0) || false;
   const revestimentos: Revestimento[] = productCtx?.revestimentos || product.Revestimentos || [];
-  const selectedRevestimento = productCtx?.selectedRevestimento || (revestimentos.length > 0 ? revestimentos[0] : null);
-  const selectedCorRevestimento = productCtx?.selectedCorRevestimento || (selectedRevestimento?.Cores && selectedRevestimento.Cores.length > 0 ? selectedRevestimento.Cores[0] : null);
+  const selectedRevestimento = !isProductQuoteOnly ? (productCtx?.selectedRevestimento || (revestimentos.length > 0 ? revestimentos[0] : null)) : null;
+  const selectedCorRevestimento = !isProductQuoteOnly ? (productCtx?.selectedCorRevestimento || (selectedRevestimento?.Cores && selectedRevestimento.Cores.length > 0 ? selectedRevestimento.Cores[0] : null)) : null;
   const selectRevestimentoAndCor = productCtx?.selectRevestimentoAndCor || (() => { });
 
   // Controle do acordeão principal de Revestimento e Cor (Camada 1)
@@ -119,16 +178,16 @@ export default function ProductHero({ product }: ProductHeroProps) {
   // Configurações / Modelos principais do produto
   const hasConfiguracoes = productCtx?.hasConfiguracoes || false;
   const configuracoes = productCtx?.configuracoes || [];
-  const selectedConfiguracao = productCtx?.selectedConfiguracao || null;
+  const selectedConfiguracao = productCtx?.selectedConfiguracao || (configuracoes.length > 0 ? configuracoes[0] : null);
   const selectConfiguracao = productCtx?.selectConfiguracao || (() => { });
   const [isConfiguracaoSectionOpen, setIsConfiguracaoSectionOpen] = useState(true);
   const [lastClickedConfiguracao, setLastClickedConfiguracao] = useState<ConfiguracaoItem | null>(null);
 
   const hasVariationGroups = productCtx?.hasVariationGroups || (product.Grupos_variacao && product.Grupos_variacao.length > 0) || false;
   const variationGroups: VariationGroup[] = productCtx?.variationGroups || product.Grupos_variacao || [];
-  const selectedGroupOptions = productCtx?.selectedGroupOptions || {};
+  const selectedGroupOptions = !isProductQuoteOnly ? (productCtx?.selectedGroupOptions || {}) : {};
   const selectGroupOption = productCtx?.selectGroupOption || (() => { });
-  const activeGroupPhotoUrl = productCtx?.activeGroupPhotoUrl || null;
+  const activeGroupPhotoUrl = !isProductQuoteOnly ? (productCtx?.activeGroupPhotoUrl || null) : null;
 
   // Controle do acordeão principal de Componentes e Acessórios (Pai)
   const [isComponentsSectionOpen, setIsComponentsSectionOpen] = useState(false);
@@ -143,13 +202,13 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const hasMedidas = productCtx?.hasMedidas || (product.Opcoes_medida && product.Opcoes_medida.length > 0) || false;
   const medidas: OpcaoMedida[] = productCtx?.medidas || product.Opcoes_medida || [];
   const [internalSelectedMedida, setInternalSelectedMedida] = useState<OpcaoMedida | null>(
-    medidas.length > 0 ? medidas[0] : null
+    !isProductQuoteOnly && medidas.length > 0 ? medidas[0] : null
   );
-  const selectedMedida = productCtx ? productCtx.selectedMedida : internalSelectedMedida;
+  const selectedMedida = !isProductQuoteOnly ? (productCtx ? productCtx.selectedMedida : internalSelectedMedida) : null;
   const setSelectedMedida = productCtx ? productCtx.setSelectedMedida : setInternalSelectedMedida;
 
   const availableColors = productCtx?.availableColors || [];
-  const selectedColor = productCtx?.selectedColor || null;
+  const selectedColor = !isProductQuoteOnly ? (productCtx?.selectedColor || null) : null;
   const setSelectedColor = productCtx?.setSelectedColor || (() => { });
 
   const [internalVariationIndex, setInternalVariationIndex] = useState(0);
@@ -173,32 +232,48 @@ export default function ProductHero({ product }: ProductHeroProps) {
   // Variação ativa atual (resolvida pelo contexto dinâmico ou fallback)
   const currentVariation: Variation | undefined = productCtx?.selectedVariation || variations[selectedVariationIndex];
 
-  // Preço base e regular (suporta revestimentos em 3 camadas, cores legadas e grupos modulares)
+  // Preço base e regular (suporta configurações/modelos, revestimentos em 3 camadas, cores legadas e grupos modulares)
   const basePrice = useMemo(() => {
     let base = 0;
     let additionalFromRevestimento = 0;
 
-    // 0. Revestimento ativo (3 camadas)
+    // 0. Configuração / modelo selecionado
+    if (hasConfiguracoes && selectedConfiguracao) {
+      if (selectedConfiguracao.Preco_promocional && Number(selectedConfiguracao.Preco_promocional) > 0) {
+        base = Number(selectedConfiguracao.Preco_promocional);
+      } else if (selectedConfiguracao.Preco && Number(selectedConfiguracao.Preco) > 0) {
+        base = Number(selectedConfiguracao.Preco);
+      }
+      if (selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0) {
+        additionalFromRevestimento += Number(selectedConfiguracao.Preco_adicional);
+      }
+    }
+
+    // 0.2. Revestimento ativo (3 camadas)
     if (hasRevestimentos && selectedCorRevestimento) {
-      if (selectedCorRevestimento.Preco_promocional && Number(selectedCorRevestimento.Preco_promocional) > 0) {
-        base = Number(selectedCorRevestimento.Preco_promocional);
-      } else if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
-        base = Number(selectedCorRevestimento.Preco);
-      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
-        base = Number(selectedCorRevestimento.Preco_diferenciado);
+      if (base === 0) {
+        if (selectedCorRevestimento.Preco_promocional && Number(selectedCorRevestimento.Preco_promocional) > 0) {
+          base = Number(selectedCorRevestimento.Preco_promocional);
+        } else if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
+          base = Number(selectedCorRevestimento.Preco);
+        } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
+          base = Number(selectedCorRevestimento.Preco_diferenciado);
+        }
       }
       if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
-        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+        additionalFromRevestimento += Number(selectedCorRevestimento.Preco_adicional);
       }
     }
 
     // 0.5. Medida selecionada (define preço base ou tem acréscimo)
     let additionalFromMedida = 0;
     if (hasMedidas && selectedMedida) {
-      if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
-        base = Number(selectedMedida.Preco_promocional);
-      } else if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
-        base = Number(selectedMedida.Preco);
+      if (base === 0) {
+        if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
+          base = Number(selectedMedida.Preco_promocional);
+        } else if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
+          base = Number(selectedMedida.Preco);
+        }
       }
       if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
         additionalFromMedida = Number(selectedMedida.Preco_adicional);
@@ -245,31 +320,47 @@ export default function ProductHero({ product }: ProductHeroProps) {
     const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
 
     return base > 0 ? base + totalAdditional : 0;
-  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
+  }, [hasConfiguracoes, selectedConfiguracao, hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
 
   const regularPrice = useMemo(() => {
     let reg = 0;
     let additionalFromRevestimento = 0;
 
-    // 0. Revestimento ativo (3 camadas)
+    // 0. Configuração / modelo selecionado
+    if (hasConfiguracoes && selectedConfiguracao) {
+      if (selectedConfiguracao.Preco && Number(selectedConfiguracao.Preco) > 0) {
+        reg = Number(selectedConfiguracao.Preco);
+      } else if (selectedConfiguracao.Preco_promocional && Number(selectedConfiguracao.Preco_promocional) > 0) {
+        reg = Number(selectedConfiguracao.Preco_promocional);
+      }
+      if (selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0) {
+        additionalFromRevestimento += Number(selectedConfiguracao.Preco_adicional);
+      }
+    }
+
+    // 0.2. Revestimento ativo (3 camadas)
     if (hasRevestimentos && selectedCorRevestimento) {
-      if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
-        reg = Number(selectedCorRevestimento.Preco);
-      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
-        reg = Number(selectedCorRevestimento.Preco_diferenciado);
+      if (reg === 0) {
+        if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
+          reg = Number(selectedCorRevestimento.Preco);
+        } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
+          reg = Number(selectedCorRevestimento.Preco_diferenciado);
+        }
       }
       if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
-        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+        additionalFromRevestimento += Number(selectedCorRevestimento.Preco_adicional);
       }
     }
 
     // 0.5. Medida selecionada (regular)
     let additionalFromMedida = 0;
     if (hasMedidas && selectedMedida) {
-      if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
-        reg = Number(selectedMedida.Preco);
-      } else if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
-        reg = Number(selectedMedida.Preco_promocional);
+      if (reg === 0) {
+        if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
+          reg = Number(selectedMedida.Preco);
+        } else if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
+          reg = Number(selectedMedida.Preco_promocional);
+        }
       }
       if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
         additionalFromMedida = Number(selectedMedida.Preco_adicional);
@@ -299,11 +390,11 @@ export default function ProductHero({ product }: ProductHeroProps) {
     const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
 
     return reg > 0 ? reg + totalAdditional : 0;
-  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
+  }, [hasConfiguracoes, selectedConfiguracao, hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
 
   const hasDiscount = regularPrice > 0 && basePrice > 0 && basePrice < regularPrice;
 
-  const isQuoteOnly = !basePrice || basePrice <= 0;
+  const isQuoteOnly = isProductQuoteOnly || (productCtx?.isQuoteOnly ?? false) || !basePrice || basePrice <= 0;
 
   // Preço adicional da garantia selecionada
   const warrantyAdditionalPrice = useMemo(() => {
@@ -628,25 +719,25 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const handleQuoteRequest = () => {
     const configLines: string[] = [];
     if (hasConfiguracoes && selectedConfiguracao) {
-      configLines.push(`• Configuração: ${selectedConfiguracao.Nome}${!isQuoteOnly && selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedConfiguracao.Preco_adicional))})` : ""}`);
+      configLines.push(`• Modelo: ${selectedConfiguracao.Nome}${!isQuoteOnly && selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedConfiguracao.Preco_adicional))})` : ""}`);
     }
-    if (hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
-      configLines.push(`• Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})${!isQuoteOnly && selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedCorRevestimento.Preco_adicional))})` : ""}`);
+    if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
+      configLines.push(`• Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})${selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedCorRevestimento.Preco_adicional))})` : ""}`);
     }
-    if (availableColors.length > 0 && selectedColor) {
+    if (!isQuoteOnly && availableColors.length > 0 && selectedColor) {
       configLines.push(`• Cor: ${selectedColor}`);
     }
-    if (hasVariationGroups) {
+    if (!isQuoteOnly && hasVariationGroups) {
       Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
-        configLines.push(`• ${groupTitle}: ${opt.Nome}${!isQuoteOnly && opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? ` (+${formatBRL(Number(opt.Preco_adicional))})` : ""}`);
+        configLines.push(`• ${groupTitle}: ${opt.Nome}${opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? ` (+${formatBRL(Number(opt.Preco_adicional))})` : ""}`);
       });
     }
-    if (hasMedidas && selectedMedida) {
-      configLines.push(`• Medida: ${selectedMedida.Titulo}${!isQuoteOnly && selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedMedida.Preco_adicional))})` : ""}`);
+    if (!isQuoteOnly && hasMedidas && selectedMedida) {
+      configLines.push(`• Medida: ${selectedMedida.Titulo}${selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedMedida.Preco_adicional))})` : ""}`);
     }
 
     const configDetails = configLines.length > 0 ? configLines.join("\n") : "";
-    const variationLabel = productCtx?.variationDisplayName || (currentVariation?.Nome_cor ? `Cor: ${currentVariation.Nome_cor}` : "");
+    const variationLabel = productCtx?.variationDisplayName || (selectedConfiguracao ? `Modelo: ${selectedConfiguracao.Nome}` : (currentVariation?.Nome_cor ? `Cor: ${currentVariation.Nome_cor}` : ""));
 
     const msg = `Olá! Gostaria de solicitar um orçamento para o produto: *${product.Nome}*${configLines.length > 0
         ? `\n\n*Configurações Escolhidas:*\n${configDetails}`
@@ -657,7 +748,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
   };
 
   const handleAddToCart = () => {
-    const thumbUrl = !isQuoteOnly && hasRevestimentos && selectedCorRevestimento
+    const thumbUrl = hasConfiguracoes && selectedConfiguracao?.Galeria?.[0]
+      ? getStrapiMedia(selectedConfiguracao.Galeria[0].url)
+      : !isQuoteOnly && hasRevestimentos && selectedCorRevestimento
       ? (selectedCorRevestimento.Galeria?.[0] ? getStrapiMedia(selectedCorRevestimento.Galeria[0].url) : (selectedCorRevestimento.Miniatura ? getStrapiMedia(selectedCorRevestimento.Miniatura.url) : activeImageUrl))
       : !isQuoteOnly && hasVariationGroups
         ? (activeGroupPhotoUrl || (product.Galeria?.[0]?.url ? getStrapiMedia(product.Galeria[0].url) : null))
@@ -672,12 +765,15 @@ export default function ProductHero({ product }: ProductHeroProps) {
     const selectedWarranty = product.garantias?.find((g: any) => g.id === selectedWarrantyId);
 
     const options: string[] = [];
+    if (hasConfiguracoes && selectedConfiguracao) {
+      options.push(`Modelo: ${selectedConfiguracao.Nome}`);
+    }
     if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
       options.push(`Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`);
     }
-    if (availableColors.length > 0 && selectedColor) {
+    if (!isQuoteOnly && availableColors.length > 0 && selectedColor) {
       options.push(`Cor: ${selectedColor}`);
-    } else if (!hasRevestimentos && currentVariation?.Nome_cor) {
+    } else if (!isQuoteOnly && !hasRevestimentos && currentVariation?.Nome_cor) {
       options.push(`Cor: ${currentVariation.Nome_cor}`);
     }
     if (!isQuoteOnly && hasVariationGroups) {
@@ -685,21 +781,22 @@ export default function ProductHero({ product }: ProductHeroProps) {
         options.push(`${groupTitle}: ${opt.Nome}`);
       });
     }
-    if (hasMedidas && selectedMedida) {
+    if (!isQuoteOnly && hasMedidas && selectedMedida) {
       options.push(`Medida: ${selectedMedida.Titulo}`);
     }
 
-    const variationLabel = options.length > 0 ? options.join(" • ") : "Padrão";
+    const variationLabel = options.length > 0 ? options.join(" • ") : (selectedConfiguracao ? selectedConfiguracao.Nome : "Padrão");
 
-    const medidaKey = hasMedidas && selectedMedida ? `medida:${selectedMedida.Titulo}` : "";
+    const configKey = selectedConfiguracao ? `cfg:${selectedConfiguracao.Nome}` : "";
+    const medidaKey = !isQuoteOnly && hasMedidas && selectedMedida ? `medida:${selectedMedida.Titulo}` : "";
 
     const compositeCartId = isQuoteOnly
-      ? `${product.id}-quote-${selectedWarrantyId || 0}`
+      ? `${product.id}-quote-${configKey}-${selectedWarrantyId || 0}`
       : hasRevestimentos && selectedRevestimento && selectedCorRevestimento
-        ? `${product.id}-${selectedRevestimento.Nome}:${selectedCorRevestimento.Nome_cor}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
+        ? `${product.id}-${configKey}-${selectedRevestimento.Nome}:${selectedCorRevestimento.Nome_cor}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
         : hasVariationGroups
-          ? `${product.id}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
-          : `${product.id}-${variationLabel}-${selectedWarrantyId || 0}`;
+          ? `${product.id}-${configKey}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
+          : `${product.id}-${configKey}-${variationLabel}-${selectedWarrantyId || 0}`;
 
     cart.addItem({
       id: compositeCartId,
@@ -920,35 +1017,39 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 <h2 className="text-[14px] md:text-[15px] font-heading font-semibold text-[#000000]">
                   Cor
                 </h2>
-                {selectedColor && (
+                {!isQuoteOnly && selectedColor && (
                   <span className="text-[12px] font-sans font-medium text-stone-600">
                     {selectedColor}
                   </span>
                 )}
               </div>
               <p className="text-[12px] font-sans text-[#69736B] mt-0.5">
-                Encontre a cor que mais combina com seu ambiente
+                {isQuoteOnly ? "Consulte as cores disponíveis para este modelo" : "Encontre a cor que mais combina com seu ambiente"}
               </p>
 
               {/* Lista de cards de cores */}
               <div className="mt-3 flex flex-col gap-2.5">
                 {availableColors.map((colorObj) => {
-                  const isSelected = colorObj.name.toLowerCase() === selectedColor?.toLowerCase();
+                  const isSelected = !isQuoteOnly && colorObj.name.toLowerCase() === selectedColor?.toLowerCase();
                   const dotColor = normalizeHex(colorObj.hex);
 
                   return (
                     <button
                       key={colorObj.name}
                       type="button"
+                      disabled={isQuoteOnly}
                       onClick={() => {
+                        if (isQuoteOnly) return;
                         setIsZoomed(false);
                         setSelectedColor(colorObj.name);
                         setLastActiveSelectionType("variacao");
                         setActiveImageIndex(0);
                       }}
-                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${isSelected
+                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group ${isSelected
                           ? "border-[#000000] bg-white shadow-xs"
-                          : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
+                          : isQuoteOnly
+                            ? "border-[#E5E7EB] bg-white cursor-default"
+                            : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF] cursor-pointer"
                         }`}
                     >
                       {/* Lado esquerdo: Bolinha de cor + Thumbnail opcional + Nome */}
@@ -975,17 +1076,19 @@ export default function ProductHero({ product }: ProductHeroProps) {
                         </span>
                       </div>
 
-                      <div className="shrink-0 flex items-center justify-center">
-                        {isSelected ? (
-                          <div className="w-[18px] h-[18px] rounded-full bg-[#000000] flex items-center justify-center text-white">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          </div>
-                        ) : (
-                          <div className="w-[18px] h-[18px] rounded-full border border-[#D1D5DB] group-hover:border-gray-400 transition-colors" />
-                        )}
-                      </div>
+                      {!isQuoteOnly && (
+                        <div className="shrink-0 flex items-center justify-center">
+                          {isSelected ? (
+                            <div className="w-[18px] h-[18px] rounded-full bg-[#000000] flex items-center justify-center text-white">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className="w-[18px] h-[18px] rounded-full border border-[#D1D5DB] group-hover:border-gray-400 transition-colors" />
+                          )}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -1002,32 +1105,36 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 <h2 className="text-[14px] md:text-[15px] font-heading font-semibold text-[#000000]">
                   Medida
                 </h2>
-                {selectedMedida && (
+                {!isQuoteOnly && selectedMedida && (
                   <span className="text-[12px] font-sans font-medium text-stone-600">
                     {selectedMedida.Titulo}
                   </span>
                 )}
               </div>
               <p className="text-[12px] font-sans text-[#69736B] mt-0.5">
-                Escolha o tamanho ideal para o seu espaço
+                {isQuoteOnly ? "Consulte as medidas disponíveis para este modelo" : "Escolha o tamanho ideal para o seu espaço"}
               </p>
 
               {/* Lista de cards de medidas */}
               <div className="mt-3 flex flex-col gap-2.5">
                 {medidas.map((med) => {
-                  const isSelected = selectedMedida?.Titulo === med.Titulo;
+                  const isSelected = !isQuoteOnly && selectedMedida?.Titulo === med.Titulo;
 
                   return (
                     <button
                       key={med.Titulo}
                       type="button"
+                      disabled={isQuoteOnly}
                       onClick={() => {
+                        if (isQuoteOnly) return;
                         setIsZoomed(false);
                         setSelectedMedida(med);
                       }}
-                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${isSelected
+                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group ${isSelected
                           ? "border-[#000000] bg-white shadow-xs"
-                          : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
+                          : isQuoteOnly
+                            ? "border-[#E5E7EB] bg-white cursor-default"
+                            : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF] cursor-pointer"
                         }`}
                     >
                       {/* Lado esquerdo: Nome da medida + Descrição */}
@@ -1043,29 +1150,31 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       </div>
 
                       {/* Lado direito: Preço ou Acréscimo + Radio checkmark */}
-                      <div className="flex items-center gap-3 shrink-0">
-                        {med.Preco_adicional && Number(med.Preco_adicional) > 0 ? (
-                          <span className="text-[12px] font-sans font-medium text-[#006642]">
-                            +{formatBRL(Number(med.Preco_adicional))}
-                          </span>
-                        ) : med.Preco && Number(med.Preco) > 0 ? (
-                          <span className="text-[12px] font-sans font-medium text-stone-700">
-                            {formatBRL(Number(med.Preco_promocional || med.Preco))}
-                          </span>
-                        ) : null}
+                      {!isQuoteOnly && (
+                        <div className="flex items-center gap-3 shrink-0">
+                          {med.Preco_adicional && Number(med.Preco_adicional) > 0 ? (
+                            <span className="text-[12px] font-sans font-medium text-[#006642]">
+                              +{formatBRL(Number(med.Preco_adicional))}
+                            </span>
+                          ) : med.Preco && Number(med.Preco) > 0 ? (
+                            <span className="text-[12px] font-sans font-medium text-stone-700">
+                              {formatBRL(Number(med.Preco_promocional || med.Preco))}
+                            </span>
+                          ) : null}
 
-                        <div className="shrink-0 flex items-center justify-center">
-                          {isSelected ? (
-                            <div className="w-[18px] h-[18px] rounded-full bg-[#000000] flex items-center justify-center text-white">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            </div>
-                          ) : (
-                            <div className="w-[18px] h-[18px] rounded-full border border-[#D1D5DB] group-hover:border-gray-400 transition-colors" />
-                          )}
+                          <div className="shrink-0 flex items-center justify-center">
+                            {isSelected ? (
+                              <div className="w-[18px] h-[18px] rounded-full bg-[#000000] flex items-center justify-center text-white">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <div className="w-[18px] h-[18px] rounded-full border border-[#D1D5DB] group-hover:border-gray-400 transition-colors" />
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </button>
                   );
                 })}
@@ -1089,7 +1198,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
                     Revestimento e cor
                   </span>
-                  {selectedRevestimento && selectedCorRevestimento && (
+                  {!isQuoteOnly && selectedRevestimento && selectedCorRevestimento && (
                     <span className="text-[13px] font-sans text-stone-500 font-normal">
                       — {selectedRevestimento.Nome} ({selectedCorRevestimento.Nome_cor})
                     </span>
@@ -1125,9 +1234,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   {/* CAMADA 2: ACORDEÕES SANFONA POR TIPO DE REVESTIMENTO (MATERIAL) */}
                   <div className="flex flex-col gap-2.5">
                     {revestimentos.map((rev) => {
-                      const isSelectedRev = selectedRevestimento?.Nome === rev.Nome;
+                      const isSelectedRev = !isQuoteOnly && selectedRevestimento?.Nome === rev.Nome;
                       const isMaterialOpen = openMaterialNome === rev.Nome;
-                      const activeCorInThisRev = isSelectedRev ? selectedCorRevestimento : null;
+                      const activeCorInThisRev = !isQuoteOnly && isSelectedRev ? selectedCorRevestimento : null;
 
                       return (
                         <div
@@ -1205,20 +1314,23 @@ export default function ProductHero({ product }: ProductHeroProps) {
                           {isMaterialOpen && rev.Cores && rev.Cores.length > 0 && (
                             <div className="px-3.5 pb-3.5 pt-1 border-t border-stone-100 flex flex-wrap gap-2 sm:gap-2.5 items-start">
                               {rev.Cores.map((cor) => {
-                                const isCorSelected = isSelectedRev && selectedCorRevestimento?.Nome_cor === cor.Nome_cor;
+                                const isCorSelected = !isQuoteOnly && isSelectedRev && selectedCorRevestimento?.Nome_cor === cor.Nome_cor;
                                 const dotColor = normalizeHex(cor.Cor_hex);
                                 const thumbImg = cor.Miniatura?.url ? getStrapiMedia(cor.Miniatura.url) : null;
 
                                 return (
                                   <div
                                     key={cor.Nome_cor}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all cursor-pointer ${isCorSelected
-                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
-                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all ${isCorSelected
+                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs cursor-pointer"
+                                        : isQuoteOnly
+                                          ? "border-stone-200 bg-white cursor-default"
+                                          : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50 cursor-pointer"
                                       }`}
-                                    role="button"
-                                    tabIndex={0}
+                                    role={isQuoteOnly ? undefined : "button"}
+                                    tabIndex={isQuoteOnly ? -1 : 0}
                                     onClick={() => {
+                                      if (isQuoteOnly) return;
                                       setIsZoomed(false);
                                       setLastActiveSelectionType("revestimento");
                                       setLastClickedCor(cor);
@@ -1226,6 +1338,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                       setActiveImageIndex(0);
                                     }}
                                     onKeyDown={(e) => {
+                                      if (isQuoteOnly) return;
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
                                         setIsZoomed(false);
@@ -1449,7 +1562,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
                     Componentes e Acessórios
                   </span>
-                  {selectedComponentsSummary && (
+                  {!isQuoteOnly && selectedComponentsSummary && (
                     <span className="text-[13px] font-sans text-stone-500 font-normal">
                       — {selectedComponentsSummary}
                     </span>
@@ -1485,7 +1598,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   <div className="flex flex-col gap-2.5">
                     {variationGroups.map((group) => {
                       const isGroupOpen = openGroupTitulo === group.Titulo;
-                      const currentSelected = selectedGroupOptions[group.Titulo];
+                      const currentSelected = !isQuoteOnly ? selectedGroupOptions[group.Titulo] : null;
 
                       return (
                         <div
@@ -1559,20 +1672,23 @@ export default function ProductHero({ product }: ProductHeroProps) {
                           {isGroupOpen && (
                             <div className="p-3 pt-1 flex flex-wrap gap-2 sm:gap-2.5 items-start">
                               {group.Opcoes?.map((opt) => {
-                                const isSelected = currentSelected?.Nome === opt.Nome;
+                                const isSelected = !isQuoteOnly && selectedGroupOptions[group.Titulo]?.Nome === opt.Nome;
                                 const photoUrl = opt.Galeria?.[0]?.url ? getStrapiMedia(opt.Galeria[0].url) : null;
                                 const dotColor = normalizeHex(opt.Cor_hex);
 
                                 return (
                                   <div
                                     key={opt.Nome}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all cursor-pointer ${isSelected
-                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
-                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all ${isSelected
+                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs cursor-pointer"
+                                        : isQuoteOnly
+                                          ? "border-stone-200 bg-white cursor-default"
+                                          : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50 cursor-pointer"
                                       }`}
-                                    role="button"
-                                    tabIndex={0}
+                                    role={isQuoteOnly ? undefined : "button"}
+                                    tabIndex={isQuoteOnly ? -1 : 0}
                                     onClick={() => {
+                                      if (isQuoteOnly) return;
                                       setIsZoomed(false);
                                       setLastActiveSelectionType("group");
                                       setLastClickedGroupOption(opt);
@@ -1580,6 +1696,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                       setActiveImageIndex(0);
                                     }}
                                     onKeyDown={(e) => {
+                                      if (isQuoteOnly) return;
                                       if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
                                         setIsZoomed(false);
