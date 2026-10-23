@@ -35,17 +35,17 @@ interface ComplementaryItem {
   variation: any;
 }
 
-// Card de Produto Complementar com Dropdown customizado integrado à identidade visual
+// Card de Produto Complementar com Dropdown customizado (altura fixa idêntica e opções flutuando por cima)
 function ComplementaryCard({
   comp,
   cardWidthClass,
-  cardMinHeightClass,
+  cardHeightClass,
   imageHeightClass,
   onSelectConfig,
 }: {
   comp: ComplementaryItem;
   cardWidthClass: string;
-  cardMinHeightClass: string;
+  cardHeightClass: string;
   imageHeightClass: string;
   onSelectConfig: (productId: number, configKey: string) => void;
 }) {
@@ -68,11 +68,11 @@ function ComplementaryCard({
 
   return (
     <div
-      className={`${cardWidthClass} relative bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 hover:border-gray-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between ${cardMinHeightClass} shrink-0 group ${
+      className={`${cardWidthClass} relative bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 hover:border-gray-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between ${cardHeightClass} shrink-0 group ${
         isOpen ? "z-40 ring-1 ring-black/5" : "z-10"
       }`}
     >
-      {/* Stretched Link cobrindo todo o card (menos os elementos com z-10 / z-20) */}
+      {/* Stretched Link cobrindo todo o card (menos o dropdown interativo) */}
       <Link
         href={comp.href}
         target="_blank"
@@ -89,7 +89,7 @@ function ComplementaryCard({
             src={comp.imageUrl}
             alt={comp.name}
             fill
-            className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+            className="object-contain p-2"
             sizes="350px"
           />
         ) : (
@@ -98,119 +98,112 @@ function ComplementaryCard({
       </div>
 
       {/* Área inferior: Dropdown de Modelo (entre a foto e o nome) + Marca + Nome + Preço */}
-      <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col pointer-events-none">
-        {/* Dropdown de Modelo customizado */}
-        {comp.configurations.length > 1 ? (
-          <div
-            ref={dropdownRef}
-            className="relative z-20 mb-3 pointer-events-auto"
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
-                Modelo
-              </span>
-              <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
-                {comp.configurations.length} opções
-              </span>
-            </div>
-
-            {/* Botão Gatilho do Dropdown com estilo do site */}
-            <button
-              type="button"
-              onClick={() => setIsOpen(!isOpen)}
-              className={`w-full flex items-center justify-between gap-2 bg-[#F7F7F8] hover:bg-[#F0F0F2] border ${
-                isOpen ? "border-black ring-1 ring-black bg-white" : "border-[#E5E7EB] hover:border-stone-400"
-              } rounded-xl px-3 py-2 text-left transition-all duration-200 cursor-pointer shadow-2xs group/btn`}
+      <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col justify-between flex-1 pointer-events-none">
+        <div className="flex flex-col">
+          {/* Dropdown de Modelo customizado */}
+          {comp.configurations.length > 1 && (
+            <div
+              ref={dropdownRef}
+              className="relative z-30 mb-2 pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
             >
-              <span className="text-[11px] md:text-[12px] font-sans font-medium text-[#000000] truncate">
-                {comp.selectedConfig?.Nome || "Selecione o modelo"}
-              </span>
-              <div
-                className={`shrink-0 text-stone-400 group-hover/btn:text-black transition-transform duration-200 ${
-                  isOpen ? "rotate-180 text-black" : ""
-                }`}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
+                  Modelo
+                </span>
+                <span className="text-[10px] font-sans text-stone-400">
+                  {comp.configurations.length} opções
+                </span>
               </div>
-            </button>
 
-            {/* Menu Suspenso Flutuante com a Identidade do Site */}
-            {isOpen && (
-              <div
-                className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E5E7EB] rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.16)] p-1.5 z-50 max-h-[220px] overflow-y-auto overscroll-contain animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1 cart-scroll"
+              {/* Botão Gatilho do Dropdown com estilo do site */}
+              <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full flex items-center justify-between gap-2 bg-[#F7F7F8] hover:bg-[#F0F0F2] border ${
+                  isOpen ? "border-black ring-1 ring-black bg-white" : "border-[#E5E7EB] hover:border-stone-400"
+                } rounded-xl px-2.5 py-1.5 text-left transition-all duration-200 cursor-pointer shadow-2xs group/btn`}
               >
-                {comp.configurations.map((c: any) => {
-                  const isSelected =
-                    String(comp.selectedConfig?.id) === String(c.id) ||
-                    comp.selectedConfig?.Nome === c.Nome;
-                  return (
-                    <button
-                      key={c.id || c.Nome}
-                      type="button"
-                      onClick={() => {
-                        onSelectConfig(comp.product.id, c.id ? String(c.id) : c.Nome);
-                        setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left text-[11px] md:text-[12px] font-sans transition-all cursor-pointer ${
-                        isSelected
-                          ? "bg-black text-white font-medium shadow-xs"
-                          : "text-stone-700 hover:bg-stone-100 hover:text-black"
-                      }`}
-                    >
-                      <span className="truncate leading-snug">{c.Nome}</span>
-                      {isSelected && (
-                        <svg
-                          width="13"
-                          height="13"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="shrink-0 text-white ml-1.5"
-                        >
-                          <polyline points="20 6 9 17 4 12" />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : comp.selectedConfig ? (
-          <div className="mb-3">
-            <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B] block mb-1">
-              Modelo
-            </span>
-            <div className="bg-[#F7F7F8] border border-[#E5E7EB] rounded-xl px-3 py-2">
-              <span className="text-[11px] md:text-[12px] font-sans font-medium text-black truncate block" title={comp.selectedConfig.Nome}>
-                {comp.selectedConfig.Nome}
-              </span>
+                <span className="text-[11px] md:text-[12px] font-sans font-medium text-[#000000] truncate">
+                  {comp.selectedConfig?.Nome || "Selecione o modelo"}
+                </span>
+                <div
+                  className={`shrink-0 text-stone-400 group-hover/btn:text-black transition-transform duration-200 ${
+                    isOpen ? "rotate-180 text-black" : ""
+                  }`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </button>
+
+              {/* Menu Suspenso Flutuante: abre por cima, sem limites de container, com sombra alta */}
+              {isOpen && (
+                <div
+                  className="absolute -left-2 -right-2 top-full mt-2 bg-white border border-[#E5E7EB] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.22)] p-2 z-50 max-h-[340px] overflow-y-auto overscroll-contain animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1.5 cart-scroll"
+                >
+                  {comp.configurations.map((c: any) => {
+                    const isSelected =
+                      String(comp.selectedConfig?.id) === String(c.id) ||
+                      comp.selectedConfig?.Nome === c.Nome;
+                    return (
+                      <button
+                        key={c.id || c.Nome}
+                        type="button"
+                        onClick={() => {
+                          onSelectConfig(comp.product.id, c.id ? String(c.id) : c.Nome);
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-start justify-between gap-2.5 px-3.5 py-2.5 rounded-xl text-left text-[11px] md:text-[12px] font-sans transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-black text-white font-medium shadow-xs"
+                            : "text-stone-700 hover:bg-stone-100 hover:text-black"
+                        }`}
+                      >
+                        <span className="leading-snug line-clamp-2 flex-1">
+                          {c.Nome}
+                        </span>
+                        {isSelected && (
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="shrink-0 text-white ml-1.5 mt-0.5"
+                          >
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Marca */}
+          <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
+            {comp.brand}
+          </span>
+
+          {/* Nome do Produto com ícone externo */}
+          <div className="flex items-center justify-between gap-1 mt-1">
+            <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] line-clamp-1 group-hover:underline" title={comp.name}>
+              {comp.name}
+            </h3>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-stone-400 group-hover:text-black transition-colors">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
           </div>
-        ) : null}
-
-        {/* Marca */}
-        <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
-          {comp.brand}
-        </span>
-
-        {/* Nome do Produto com ícone externo */}
-        <div className="flex items-center justify-between gap-1 mt-1">
-          <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] line-clamp-1 group-hover:underline" title={comp.name}>
-            {comp.name}
-          </h3>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-stone-400 group-hover:text-black transition-colors">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
         </div>
 
         {/* Preço */}
@@ -505,31 +498,31 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     }));
   };
 
-  // Ajuste dinâmico de largura dos cards se houver 3 produtos no total (1 principal + 2 complementares)
+  // Ajuste dinâmico de largura e altura fixa idêntica para todos os cards
   const isThreeProducts = complementaryList.length >= 2;
   const cardWidthClass = isThreeProducts
     ? "w-[210px] sm:w-[230px] md:w-[245px] xl:w-[275px]"
     : "w-[280px] md:w-[310px] lg:w-[330px] xl:w-[350px]";
-  const cardMinHeightClass = isThreeProducts
-    ? "min-h-[400px] md:min-h-[440px]"
-    : "min-h-[430px] md:min-h-[470px]";
+  const cardHeightClass = isThreeProducts
+    ? "h-[430px] md:h-[450px]"
+    : "h-[450px] md:h-[470px]";
   const imageHeightClass = isThreeProducts
     ? "h-[175px] md:h-[210px]"
-    : "h-[220px] md:h-[250px]";
+    : "h-[220px] md:h-[240px]";
 
   return (
     <section className="w-full mt-10 md:mt-24 px-4 sm:px-6 md:px-0">
       {/* ========================================================================= */}
       {/* VERSÃO DESKTOP: CONTAINER CINZA COM CARDS DE PRODUTO, SÍMBOLOS + E =       */}
       {/* ========================================================================= */}
-      <div className="hidden md:block w-full bg-[#F7F7F8] border border-[#EBEBEB] rounded-[15px] p-6 sm:p-8 md:p-8 lg:p-10 xl:p-12">
-        <div className="flex flex-col lg:flex-row items-center justify-start gap-6 lg:gap-8 xl:gap-10">
+      <div className="hidden md:block w-full bg-[#F7F7F8] border border-[#EBEBEB] rounded-[15px] p-6 sm:p-8 md:p-8 lg:p-10 xl:p-12 overflow-visible">
+        <div className="flex flex-col lg:flex-row items-center justify-start gap-6 lg:gap-8 xl:gap-10 overflow-visible">
 
-          {/* Lado Esquerdo: Cards dos produtos separados por + e = */}
-          <div className="flex items-center gap-3 sm:gap-4 lg:gap-4 xl:gap-5 shrink-0 overflow-x-auto no-scrollbar max-w-full pb-2 lg:pb-0">
+          {/* Lado Esquerdo: Cards com items-stretch e altura idêntica absoluta */}
+          <div className="flex items-stretch gap-3 sm:gap-4 lg:gap-4 xl:gap-5 shrink-0 max-w-full overflow-visible">
 
-            {/* Card 1: Produto Principal (Reflete a opção selecionada no Hero acima, sem dropdown) */}
-            <div className={`${cardWidthClass} bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 flex flex-col justify-between ${cardMinHeightClass} shrink-0`}>
+            {/* Card 1: Produto Principal (100% limpo, mesma altura exata do Card 2) */}
+            <div className={`${cardWidthClass} bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 flex flex-col justify-between ${cardHeightClass} shrink-0`}>
               <div className={`relative w-full ${imageHeightClass} flex items-center justify-center p-2`}>
                 {productMainImg ? (
                   <Image
@@ -544,26 +537,15 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                 )}
               </div>
 
-              <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col">
-                {productCtx?.selectedConfiguracao && (
-                  <div className="mb-3">
-                    <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B] block mb-1">
-                      Modelo
-                    </span>
-                    <div className="bg-[#F7F7F8] border border-[#E5E7EB] rounded-xl px-3 py-2 flex items-center justify-between">
-                      <span className="text-[11px] md:text-[12px] font-sans font-medium text-black truncate" title={productCtx.selectedConfiguracao.Nome}>
-                        {productCtx.selectedConfiguracao.Nome}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
-                  {product.marca?.Nome || "Elements"}
-                </span>
-                <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] mt-1 line-clamp-1" title={product.Nome}>
-                  {product.Nome}
-                </h3>
+              <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col justify-between flex-1">
+                <div className="flex flex-col">
+                  <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
+                    {product.marca?.Nome || "Elements"}
+                  </span>
+                  <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] mt-1 line-clamp-1" title={product.Nome}>
+                    {product.Nome}
+                  </h3>
+                </div>
                 <div className="mt-2 flex flex-col">
                   {isMainQuoteOnly ? (
                     <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
@@ -586,24 +568,24 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
             {/* Cards dos Produtos Complementares vinculados no Strapi */}
             {complementaryList.map((comp, idx) => (
               <React.Fragment key={comp.product.id || idx}>
-                {/* Símbolo + */}
-                <span className="text-[26px] md:text-[32px] font-light text-[#000000] select-none shrink-0 px-0.5 sm:px-1">
+                {/* Símbolo + com self-center para alinhamento vertical perfeito */}
+                <span className="text-[26px] md:text-[32px] font-light text-[#000000] select-none shrink-0 px-0.5 sm:px-1 self-center">
                   +
                 </span>
 
-                {/* Card Complementar com dropdown customizado e link no card inteiro */}
+                {/* Card Complementar com mesma altura exata e dropdown flutuando por cima */}
                 <ComplementaryCard
                   comp={comp}
                   cardWidthClass={cardWidthClass}
-                  cardMinHeightClass={cardMinHeightClass}
+                  cardHeightClass={cardHeightClass}
                   imageHeightClass={imageHeightClass}
                   onSelectConfig={handleSelectConfig}
                 />
               </React.Fragment>
             ))}
 
-            {/* Símbolo = */}
-            <span className="text-[26px] md:text-[32px] font-light text-[#000000] select-none shrink-0 px-0.5 sm:px-1">
+            {/* Símbolo = com self-center */}
+            <span className="text-[26px] md:text-[32px] font-light text-[#000000] select-none shrink-0 px-0.5 sm:px-1 self-center">
               =
             </span>
           </div>

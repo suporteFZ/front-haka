@@ -1187,7 +1187,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${!isRevestimentoSectionOpen ? "rotate-180" : ""}`}
+                    className={`transition-transform duration-300 ease-in-out ${!isRevestimentoSectionOpen ? "rotate-180" : ""}`}
                   >
                     <polyline points="18 15 12 9 6 15" />
                   </svg>
@@ -1195,16 +1195,19 @@ export default function ProductHero({ product }: ProductHeroProps) {
               </button>
 
               {/* CONTEÚDO DO ACORDEÃO PAI (CAMADAS 2 E 3) */}
-              {isRevestimentoSectionOpen && (
-                <div className="mt-3.5 flex flex-col">
-                  <p className="text-[12px] font-sans text-[#69736B] mb-3">
-                    {isQuoteOnly
-                      ? "Consulte os acabamentos e cores disponíveis para este modelo"
-                      : "Selecione o tipo de acabamento e a cor ideal para o seu ambiente"}
-                  </p>
+              <div
+                className={`accordion-content ${isRevestimentoSectionOpen ? "open" : ""}`}
+              >
+                <div className="accordion-content-inner">
+                  <div className="pt-3.5 pb-1 flex flex-col">
+                    <p className="text-[12px] font-sans text-[#69736B] mb-3">
+                      {isQuoteOnly
+                        ? "Consulte os acabamentos e cores disponíveis para este modelo"
+                        : "Selecione o tipo de acabamento e a cor ideal para o seu ambiente"}
+                    </p>
 
-                  {/* CAMADA 2: ACORDEÕES SANFONA POR TIPO DE REVESTIMENTO (MATERIAL) */}
-                  <div className="flex flex-col gap-2.5">
+                    {/* CAMADA 2: ACORDEÕES SANFONA POR TIPO DE REVESTIMENTO (MATERIAL) */}
+                    <div className="flex flex-col gap-2.5">
                     {revestimentos.map((rev) => {
                       const isSelectedRev = !isQuoteOnly && selectedRevestimento?.Nome === rev.Nome;
                       const isMaterialOpen = openMaterialNome === rev.Nome;
@@ -1277,7 +1280,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                   strokeWidth="2"
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
-                                  className={`transition-transform duration-200 ${!isMaterialOpen ? "rotate-180" : ""}`}
+                                  className={`transition-transform duration-300 ease-in-out ${!isMaterialOpen ? "rotate-180" : ""}`}
                                 >
                                   <polyline points="18 15 12 9 6 15" />
                                 </svg>
@@ -1286,8 +1289,12 @@ export default function ProductHero({ product }: ProductHeroProps) {
                           </button>
 
                           {/* CAMADA 3: LISTAGEM DE CORES DO REVESTIMENTO (SANFONA ABERTA) */}
-                          {isMaterialOpen && rev.Cores && rev.Cores.length > 0 && (
-                            <div className="px-3.5 pb-3.5 pt-1 border-t border-stone-100 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5 items-stretch">
+                          {rev.Cores && rev.Cores.length > 0 && (
+                            <div
+                              className={`accordion-content ${isMaterialOpen ? "open" : ""}`}
+                            >
+                              <div className="accordion-content-inner">
+                                <div className="px-3.5 pb-3.5 pt-1 border-t border-stone-100 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5 items-stretch">
                               {rev.Cores.map((cor) => {
                                 const isCorSelected = !isQuoteOnly && isSelectedRev && selectedCorRevestimento?.Nome_cor === cor.Nome_cor;
                                 const dotColor = normalizeHex(cor.Cor_hex);
@@ -1369,15 +1376,18 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 );
                               })}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                    </div>
+                  );
+                })}
                 </div>
-              )}
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
           {/* ----------------------------------------------------------------------- */}
           {/* 2.5. CONFIGURAÇÃO DO MODELO (SEÇÃO DEDICADA DE VARIAÇÃO)                */}
@@ -1420,7 +1430,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
-                      className={`transition-transform duration-200 ${!isConfiguracaoSectionOpen ? "rotate-180" : ""}`}
+                      className={`transition-transform duration-300 ease-in-out ${!isConfiguracaoSectionOpen ? "rotate-180" : ""}`}
                     >
                       <polyline points="18 15 12 9 6 15" />
                     </svg>
@@ -1428,101 +1438,105 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 </div>
               </button>
 
-              {isConfiguracaoSectionOpen && (
-                <div className="mt-3.5 flex flex-col">
-                  <p className="text-[12px] font-sans text-[#69736B] mb-3">
-                    Selecione o modelo e configuração da cadeira
-                  </p>
+              <div
+                className={`accordion-content ${isConfiguracaoSectionOpen ? "open" : ""}`}
+              >
+                <div className="accordion-content-inner">
+                  <div className="pt-3.5 pb-1 flex flex-col">
+                    <p className="text-[12px] font-sans text-[#69736B] mb-3">
+                      Selecione o modelo e configuração da cadeira
+                    </p>
 
-                  <div className="flex flex-col gap-2">
-                    {configuracoes.map((cfg) => {
-                      const isSelected = selectedConfiguracao?.Nome === cfg.Nome;
-                      const photoUrl = cfg.Galeria?.[0]?.url
-                        ? getStrapiMedia(cfg.Galeria[0].url)
-                        : null;
+                    <div className="flex flex-col gap-2">
+                      {configuracoes.map((cfg) => {
+                        const isSelected = selectedConfiguracao?.Nome === cfg.Nome;
+                        const photoUrl = cfg.Galeria?.[0]?.url
+                          ? getStrapiMedia(cfg.Galeria[0].url)
+                          : null;
 
-                      return (
-                        <div
-                          key={cfg.Nome}
-                          className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer min-h-[58px] ${isSelected
-                              ? "border-stone-900 bg-stone-50/40 ring-1 ring-stone-900 shadow-2xs"
-                              : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
-                            }`}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => {
-                            setIsZoomed(false);
-                            setLastActiveSelectionType("configuracao");
-                            setLastClickedConfiguracao(cfg);
-                            selectConfiguracao(cfg);
-                            setActiveImageIndex(0);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
+                        return (
+                          <div
+                            key={cfg.Nome}
+                            className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer min-h-[58px] ${isSelected
+                                ? "border-stone-900 bg-stone-50/40 ring-1 ring-stone-900 shadow-2xs"
+                                : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                              }`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => {
                               setIsZoomed(false);
                               setLastActiveSelectionType("configuracao");
                               setLastClickedConfiguracao(cfg);
                               selectConfiguracao(cfg);
                               setActiveImageIndex(0);
-                            }
-                          }}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            {photoUrl ? (
-                              <div className="relative w-11 h-11 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
-                                <Image
-                                  src={photoUrl}
-                                  alt={cfg.Nome}
-                                  fill
-                                  className="object-cover"
-                                />
-                              </div>
-                            ) : null}
-
-                            <div className="flex flex-col min-w-0 pr-2">
-                              <span
-                                className={`text-[13px] sm:text-[14px] font-sans leading-snug ${isSelected
-                                    ? "font-semibold text-stone-900"
-                                    : "font-normal text-stone-700"
-                                  }`}
-                              >
-                                {cfg.Nome}
-                              </span>
-                              {!isQuoteOnly && cfg.Preco_adicional && Number(cfg.Preco_adicional) > 0 ? (
-                                <span className="text-[11px] font-sans text-[#006642] font-medium leading-none mt-1 whitespace-nowrap">
-                                  +{formatBRL(Number(cfg.Preco_adicional))}
-                                </span>
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setIsZoomed(false);
+                                setLastActiveSelectionType("configuracao");
+                                setLastClickedConfiguracao(cfg);
+                                selectConfiguracao(cfg);
+                                setActiveImageIndex(0);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              {photoUrl ? (
+                                <div className="relative w-11 h-11 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
+                                  <Image
+                                    src={photoUrl}
+                                    alt={cfg.Nome}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                </div>
                               ) : null}
+
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span
+                                  className={`text-[13px] sm:text-[14px] font-sans leading-snug ${isSelected
+                                      ? "font-semibold text-stone-900"
+                                      : "font-normal text-stone-700"
+                                    }`}
+                                >
+                                  {cfg.Nome}
+                                </span>
+                                {!isQuoteOnly && cfg.Preco_adicional && Number(cfg.Preco_adicional) > 0 ? (
+                                  <span className="text-[11px] font-sans text-[#006642] font-medium leading-none mt-1 whitespace-nowrap">
+                                    +{formatBRL(Number(cfg.Preco_adicional))}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 ml-3">
+                              {isSelected ? (
+                                <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center">
+                                  <svg
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="3.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border border-stone-300" />
+                              )}
                             </div>
                           </div>
-
-                          <div className="shrink-0 ml-3">
-                            {isSelected ? (
-                              <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center">
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="3.5"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              </div>
-                            ) : (
-                              <div className="w-5 h-5 rounded-full border border-stone-300" />
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -1562,7 +1576,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${!isComponentsSectionOpen ? "rotate-180" : ""}`}
+                    className={`transition-transform duration-300 ease-in-out ${!isComponentsSectionOpen ? "rotate-180" : ""}`}
                   >
                     <polyline points="18 15 12 9 6 15" />
                   </svg>
@@ -1570,15 +1584,18 @@ export default function ProductHero({ product }: ProductHeroProps) {
               </button>
 
               {/* CONTEÚDO DO ACORDEÃO PAI: LISTA DOS SUB-ACORDEÕES DE COMPONENTES */}
-              {isComponentsSectionOpen && (
-                <div className="mt-3.5 flex flex-col">
-                  <p className="text-[12px] font-sans text-[#69736B] mb-3">
-                    {isQuoteOnly
-                      ? "Consulte as configurações e opcionais disponíveis para este modelo"
-                      : "Personalize os componentes e opcionais da sua cadeira"}
-                  </p>
+              <div
+                className={`accordion-content ${isComponentsSectionOpen ? "open" : ""}`}
+              >
+                <div className="accordion-content-inner">
+                  <div className="pt-3.5 pb-1 flex flex-col">
+                    <p className="text-[12px] font-sans text-[#69736B] mb-3">
+                      {isQuoteOnly
+                        ? "Consulte as configurações e opcionais disponíveis para este modelo"
+                        : "Personalize os componentes e opcionais da sua cadeira"}
+                    </p>
 
-                  <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2.5">
                     {variationGroups.map((group) => {
                       const isGroupOpen = openGroupTitulo === group.Titulo;
                       const currentSelected = !isQuoteOnly ? selectedGroupOptions[group.Titulo] : null;
@@ -1646,7 +1663,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                   strokeWidth="2"
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
-                                  className={`transition-transform duration-200 ${isGroupOpen ? "rotate-180" : ""}`}
+                                  className={`transition-transform duration-300 ease-in-out ${isGroupOpen ? "rotate-180" : ""}`}
                                 >
                                   <polyline points="6 9 12 15 18 9" />
                                 </svg>
@@ -1655,8 +1672,11 @@ export default function ProductHero({ product }: ProductHeroProps) {
                           </button>
 
                           {/* Conteúdo: Botões em Pílula */}
-                          {isGroupOpen && (
-                            <div className="p-3 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 items-stretch">
+                          <div
+                            className={`accordion-content ${isGroupOpen ? "open" : ""}`}
+                          >
+                            <div className="accordion-content-inner">
+                              <div className="p-3 pt-1 border-t border-stone-100 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 items-stretch">
                               {group.Opcoes?.map((opt) => {
                                 const isSelected = !isQuoteOnly && selectedGroupOptions[group.Titulo]?.Nome === opt.Nome;
                                 const photoUrl = opt.Galeria?.[0]?.url ? getStrapiMedia(opt.Galeria[0].url) : null;
@@ -1752,15 +1772,17 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 );
                               })}
                             </div>
-                          )}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
           {/* Borda 100% (Apenas Mobile se houver variações) */}
           {(hasRevestimentos || hasVariationGroups || availableColors.length > 0 || hasMedidas) && (
