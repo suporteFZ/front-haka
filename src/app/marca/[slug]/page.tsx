@@ -1,9 +1,10 @@
 import React from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getStrapiURL } from "@/utils/api";
+import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import ProductListing from "@/components/common/ProductListing";
 import { ProductCardItem } from "@/components/common/ProductCard";
+import { expandProductsForListing } from "@/utils/productUtils";
 
 interface BrandPageProps {
   params: Promise<{
@@ -19,7 +20,7 @@ async function getBrandData(slug: string) {
       `/api/marcas?filters[$or][0][slug][$eqi]=${encoded}&filters[$or][1][Nome][$eqi]=${encoded}`
     );
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return null;
 
     const json = await res.json();
@@ -38,14 +39,15 @@ async function getBrandProducts(brandSlug: string): Promise<ProductCardItem[]> {
     const url = getStrapiURL(
       `/api/produtos?filters[marca][slug][$eqi]=${encodeURIComponent(
         brandSlug
-      )}&filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      )}&filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
 
     const json = await res.json();
-    return json.data || [];
+    const rawItems = json.data || [];
+    return expandProductsForListing(rawItems);
   } catch (error) {
     console.error("Erro ao buscar produtos da marca:", error);
     return [];

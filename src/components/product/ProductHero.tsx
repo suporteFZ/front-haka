@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { getStrapiMedia } from "@/utils/api";
 import { useProduct, VariationGroup, VariationOption, Revestimento, CorRevestimento, OpcaoMedida } from "@/context/ProductContext";
+import { ConfiguracaoItem } from "@/utils/productUtils";
 import { useCart } from "@/context/CartContext";
 
 interface MediaItem {
@@ -104,7 +105,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const revestimentos: Revestimento[] = productCtx?.revestimentos || product.Revestimentos || [];
   const selectedRevestimento = productCtx?.selectedRevestimento || (revestimentos.length > 0 ? revestimentos[0] : null);
   const selectedCorRevestimento = productCtx?.selectedCorRevestimento || (selectedRevestimento?.Cores && selectedRevestimento.Cores.length > 0 ? selectedRevestimento.Cores[0] : null);
-  const selectRevestimentoAndCor = productCtx?.selectRevestimentoAndCor || (() => {});
+  const selectRevestimentoAndCor = productCtx?.selectRevestimentoAndCor || (() => { });
 
   // Controle do acordeão principal de Revestimento e Cor (Camada 1)
   const [isRevestimentoSectionOpen, setIsRevestimentoSectionOpen] = useState(false);
@@ -115,10 +116,18 @@ export default function ProductHero({ product }: ProductHeroProps) {
     setOpenMaterialNome((prev) => (prev === nome ? null : nome));
   };
 
+  // Configurações / Modelos principais do produto
+  const hasConfiguracoes = productCtx?.hasConfiguracoes || false;
+  const configuracoes = productCtx?.configuracoes || [];
+  const selectedConfiguracao = productCtx?.selectedConfiguracao || null;
+  const selectConfiguracao = productCtx?.selectConfiguracao || (() => { });
+  const [isConfiguracaoSectionOpen, setIsConfiguracaoSectionOpen] = useState(true);
+  const [lastClickedConfiguracao, setLastClickedConfiguracao] = useState<ConfiguracaoItem | null>(null);
+
   const hasVariationGroups = productCtx?.hasVariationGroups || (product.Grupos_variacao && product.Grupos_variacao.length > 0) || false;
   const variationGroups: VariationGroup[] = productCtx?.variationGroups || product.Grupos_variacao || [];
   const selectedGroupOptions = productCtx?.selectedGroupOptions || {};
-  const selectGroupOption = productCtx?.selectGroupOption || (() => {});
+  const selectGroupOption = productCtx?.selectGroupOption || (() => { });
   const activeGroupPhotoUrl = productCtx?.activeGroupPhotoUrl || null;
 
   // Controle do acordeão principal de Componentes e Acessórios (Pai)
@@ -129,6 +138,193 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const toggleGroup = (titulo: string) => {
     setOpenGroupTitulo((prev) => (prev === titulo ? null : titulo));
   };
+
+  // Opções de Medidas / Dimensões (ex: Mesas 100cm, 120cm, etc.)
+  const hasMedidas = productCtx?.hasMedidas || (product.Opcoes_medida && product.Opcoes_medida.length > 0) || false;
+  const medidas: OpcaoMedida[] = productCtx?.medidas || product.Opcoes_medida || [];
+  const [internalSelectedMedida, setInternalSelectedMedida] = useState<OpcaoMedida | null>(
+    medidas.length > 0 ? medidas[0] : null
+  );
+  const selectedMedida = productCtx ? productCtx.selectedMedida : internalSelectedMedida;
+  const setSelectedMedida = productCtx ? productCtx.setSelectedMedida : setInternalSelectedMedida;
+
+  const availableColors = productCtx?.availableColors || [];
+  const selectedColor = productCtx?.selectedColor || null;
+  const setSelectedColor = productCtx?.setSelectedColor || (() => { });
+
+  const [internalVariationIndex, setInternalVariationIndex] = useState(0);
+
+  const selectedVariationIndex = productCtx ? productCtx.selectedVariationIndex : internalVariationIndex;
+  const setSelectedVariationIndex = productCtx ? productCtx.setSelectedVariationIndex : setInternalVariationIndex;
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Rastreamento da última seleção ativa do usuário (para priorizar na galeria)
+  const [lastActiveSelectionType, setLastActiveSelectionType] = useState<"configuracao" | "group" | "revestimento" | "variacao" | null>(null);
+  const [lastClickedGroupOption, setLastClickedGroupOption] = useState<VariationOption | null>(null);
+  const [lastClickedCor, setLastClickedCor] = useState<CorRevestimento | null>(null);
+
+  // Garantia padrão inclusa + garantias estendidas do Strapi
+  // selectedWarrantyId === 0 representa a "Garantia padrão"
+  const [selectedWarrantyId, setSelectedWarrantyId] = useState<number>(0);
+
+  // Quantidade
+  const [quantity, setQuantity] = useState(1);
+
+  // Variação ativa atual (resolvida pelo contexto dinâmico ou fallback)
+  const currentVariation: Variation | undefined = productCtx?.selectedVariation || variations[selectedVariationIndex];
+
+  // Preço base e regular (suporta revestimentos em 3 camadas, cores legadas e grupos modulares)
+  const basePrice = useMemo(() => {
+    let base = 0;
+    let additionalFromRevestimento = 0;
+
+    // 0. Revestimento ativo (3 camadas)
+    if (hasRevestimentos && selectedCorRevestimento) {
+      if (selectedCorRevestimento.Preco_promocional && Number(selectedCorRevestimento.Preco_promocional) > 0) {
+        base = Number(selectedCorRevestimento.Preco_promocional);
+      } else if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
+        base = Number(selectedCorRevestimento.Preco);
+      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
+        base = Number(selectedCorRevestimento.Preco_diferenciado);
+      }
+      if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
+        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+      }
+    }
+
+    // 0.5. Medida selecionada (define preço base ou tem acréscimo)
+    let additionalFromMedida = 0;
+    if (hasMedidas && selectedMedida) {
+      if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
+        base = Number(selectedMedida.Preco_promocional);
+      } else if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
+        base = Number(selectedMedida.Preco);
+      }
+      if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
+        additionalFromMedida = Number(selectedMedida.Preco_adicional);
+      }
+    }
+
+    // 1. Preço da cor ativa da cadeira (legado)
+    if (base === 0) {
+      if (currentVariation?.Preco_promocional && Number(currentVariation.Preco_promocional) > 0) {
+        base = Number(currentVariation.Preco_promocional);
+      } else if (currentVariation?.Preco && Number(currentVariation.Preco) > 0) {
+        base = Number(currentVariation.Preco);
+      } else if (currentVariation?.Preco_diferenciado && Number(currentVariation.Preco_diferenciado) > 0) {
+        base = Number(currentVariation.Preco_diferenciado);
+      } else if (product.Preco_promocional && Number(product.Preco_promocional) > 0) {
+        base = Number(product.Preco_promocional);
+      } else if (product.Preco && Number(product.Preco) > 0) {
+        base = Number(product.Preco);
+      }
+    }
+
+    // 2. Se não achou na cor nem na raiz, busca em opções dos grupos
+    if (base === 0 && hasVariationGroups) {
+      for (const opt of Object.values(selectedGroupOptions)) {
+        if (opt.Preco_promocional && Number(opt.Preco_promocional) > 0) {
+          base = Number(opt.Preco_promocional);
+          break;
+        }
+        if (opt.Preco && Number(opt.Preco) > 0) {
+          base = Number(opt.Preco);
+          break;
+        }
+      }
+    }
+
+    // 3. Adicionais dos grupos + adicional do revestimento + adicional da medida
+    const additionalFromGroups = hasVariationGroups
+      ? Object.values(selectedGroupOptions).reduce(
+        (sum, opt) => sum + (Number(opt.Preco_adicional) || 0),
+        0
+      )
+      : 0;
+
+    const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
+
+    return base > 0 ? base + totalAdditional : 0;
+  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
+
+  const regularPrice = useMemo(() => {
+    let reg = 0;
+    let additionalFromRevestimento = 0;
+
+    // 0. Revestimento ativo (3 camadas)
+    if (hasRevestimentos && selectedCorRevestimento) {
+      if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
+        reg = Number(selectedCorRevestimento.Preco);
+      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
+        reg = Number(selectedCorRevestimento.Preco_diferenciado);
+      }
+      if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
+        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+      }
+    }
+
+    // 0.5. Medida selecionada (regular)
+    let additionalFromMedida = 0;
+    if (hasMedidas && selectedMedida) {
+      if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
+        reg = Number(selectedMedida.Preco);
+      } else if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
+        reg = Number(selectedMedida.Preco_promocional);
+      }
+      if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
+        additionalFromMedida = Number(selectedMedida.Preco_adicional);
+      }
+    }
+
+    // 1. Preço regular da cor ativa da cadeira (legado)
+    if (reg === 0) {
+      if (currentVariation?.Preco && Number(currentVariation.Preco) > 0) {
+        reg = Number(currentVariation.Preco);
+      } else if (currentVariation?.Preco_diferenciado && Number(currentVariation.Preco_diferenciado) > 0) {
+        reg = Number(currentVariation.Preco_diferenciado);
+      } else if (product.Preco && Number(product.Preco) > 0) {
+        reg = Number(product.Preco);
+      } else if (product.Preco_promocional && Number(product.Preco_promocional) > 0) {
+        reg = Number(product.Preco_promocional);
+      }
+    }
+
+    const additionalFromGroups = hasVariationGroups
+      ? Object.values(selectedGroupOptions).reduce(
+        (sum, opt) => sum + (Number(opt.Preco_adicional) || 0),
+        0
+      )
+      : 0;
+
+    const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
+
+    return reg > 0 ? reg + totalAdditional : 0;
+  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
+
+  const hasDiscount = regularPrice > 0 && basePrice > 0 && basePrice < regularPrice;
+
+  const isQuoteOnly = !basePrice || basePrice <= 0;
+
+  // Preço adicional da garantia selecionada
+  const warrantyAdditionalPrice = useMemo(() => {
+    if (selectedWarrantyId === 0) return 0;
+    const found = product.garantias?.find((g) => g.id === selectedWarrantyId);
+    return found?.Preco_adicional || 0;
+  }, [selectedWarrantyId, product.garantias]);
+
+  const unitTotalPrice = basePrice + warrantyAdditionalPrice;
+  const unitRegularPrice = regularPrice + warrantyAdditionalPrice;
+
+  // Lista de garantias: Padrão + Strapi
+  const warrantyList = [
+    {
+      id: 0,
+      Nome: "Garantia padrão",
+      Descricao: "",
+      Preco_adicional: 0,
+    },
+    ...(product.garantias || []),
+  ];
 
   const selectedComponentsSummary = useMemo(() => {
     if (!variationGroups || variationGroups.length === 0) return "";
@@ -141,19 +337,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
     return parts.join(" • ");
   }, [variationGroups, selectedGroupOptions]);
 
-  // Opções de Medidas / Dimensões (ex: Mesas 100cm, 120cm, etc.)
-  const hasMedidas = productCtx?.hasMedidas || (product.Opcoes_medida && product.Opcoes_medida.length > 0) || false;
-  const medidas: OpcaoMedida[] = productCtx?.medidas || product.Opcoes_medida || [];
-  const [internalSelectedMedida, setInternalSelectedMedida] = useState<OpcaoMedida | null>(
-    medidas.length > 0 ? medidas[0] : null
-  );
-  const selectedMedida = productCtx ? productCtx.selectedMedida : internalSelectedMedida;
-  const setSelectedMedida = productCtx ? productCtx.setSelectedMedida : setInternalSelectedMedida;
-
-  const availableColors = productCtx?.availableColors || [];
-
-  // No mobile, quando não tiver os dois primeiros componentes (Cor e Medida), deixar Revestimento e Cor aberto
+  // No mobile, quando não tiver os dois primeiros componentes (Cor e Medida), deixar Revestimento e Cor aberto se não for sob consulta
   useEffect(() => {
+    if (isQuoteOnly) return;
     const hasFirstTwo = availableColors.length > 0 || (hasMedidas && medidas.length > 0);
     if (!hasFirstTwo && hasRevestimentos) {
       if (typeof window !== "undefined" && window.innerWidth < 768) {
@@ -163,23 +349,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
         }
       }
     }
-  }, [product.id]);
-
-  const selectedColor = productCtx?.selectedColor || null;
-  const setSelectedColor = productCtx?.setSelectedColor || (() => {});
-
-  const [internalVariationIndex, setInternalVariationIndex] = useState(0);
-
-  const selectedVariationIndex = productCtx ? productCtx.selectedVariationIndex : internalVariationIndex;
-  const setSelectedVariationIndex = productCtx ? productCtx.setSelectedVariationIndex : setInternalVariationIndex;
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-  // Garantia padrão inclusa + garantias estendidas do Strapi
-  // selectedWarrantyId === 0 representa a "Garantia padrão"
-  const [selectedWarrantyId, setSelectedWarrantyId] = useState<number>(0);
-
-  // Quantidade
-  const [quantity, setQuantity] = useState(1);
+  }, [product.id, isQuoteOnly, availableColors.length, hasMedidas, medidas.length, hasRevestimentos, revestimentos, selectedRevestimento?.Nome]);
 
   // Zoom interativo na foto ao clicar
   const [isZoomed, setIsZoomed] = useState(false);
@@ -250,84 +420,143 @@ export default function ProductHero({ product }: ProductHeroProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Variação ativa atual (resolvida pelo contexto dinâmico ou fallback)
-  const currentVariation: Variation | undefined = productCtx?.selectedVariation || variations[selectedVariationIndex];
-
-  // Imagens da galeria para a variação ativa e opções selecionadas
+  // Imagens da galeria para a opção ativa (exibe exclusivamente as fotos da opção selecionada)
   const currentGallery: MediaItem[] = useMemo(() => {
-    const photos: MediaItem[] = [];
-
-    // 0. Fotos da cor do revestimento ativo (apenas do campo Galeria)
-    if (hasRevestimentos && selectedCorRevestimento?.Galeria && Array.isArray(selectedCorRevestimento.Galeria)) {
-      for (const img of selectedCorRevestimento.Galeria) {
-        if (img?.url && !photos.some((p) => p.url === img.url)) {
-          photos.push(img as MediaItem);
-        }
+    // 1. Fotos da variação tradicional ativa (ex: Cor black, preto)
+    const getVariationPhotos = (): MediaItem[] => {
+      if (!currentVariation) return [];
+      const list: MediaItem[] = [];
+      if (Array.isArray(currentVariation.Galeria) && currentVariation.Galeria.length > 0) {
+        currentVariation.Galeria.forEach((img: any) => {
+          if (img?.url && !list.some((p) => p.url === img.url)) list.push(img);
+        });
+      } else if (currentVariation.Miniatura?.url) {
+        list.push(currentVariation.Miniatura as MediaItem);
       }
-    }
+      return list;
+    };
 
-    // 1. Fotos da cor/variação ativa da cadeira (apenas do campo Galeria)
-    if (currentVariation?.Galeria && Array.isArray(currentVariation.Galeria)) {
-      for (const img of currentVariation.Galeria) {
-        if (img?.url && !photos.some((p) => p.url === img.url)) {
-          photos.push(img);
-        }
+    // 2. Fotos da configuração ativa (ex: modelos 27.001 Giratória, Aproximação) - APENAS da Galeria
+    const getConfiguracaoPhotos = (): MediaItem[] => {
+      if (!hasConfiguracoes) return [];
+      const activeCfg = lastClickedConfiguracao || selectedConfiguracao || configuracoes[0];
+      if (!activeCfg) return [];
+      const list: MediaItem[] = [];
+      if (Array.isArray(activeCfg.Galeria) && activeCfg.Galeria.length > 0) {
+        activeCfg.Galeria.forEach((img: any) => {
+          if (img?.url && !list.some((p) => p.url === img.url)) list.push(img);
+        });
       }
-    }
+      return list;
+    };
 
-    // 2. Galeria de fotos global do produto (fora de variações, para cadastro facilitado)
-    if (product.Galeria && Array.isArray(product.Galeria)) {
-      for (const img of product.Galeria) {
-        if (img?.url && !photos.some((p) => p.url === img.url)) {
-          photos.push(img);
-        }
+    // 3. Fotos do revestimento/cor ativa
+    const getRevestimentoPhotos = (): MediaItem[] => {
+      if (!hasRevestimentos) return [];
+      const targetCor = lastClickedCor || selectedCorRevestimento;
+      if (!targetCor) return [];
+      const list: MediaItem[] = [];
+      if (Array.isArray(targetCor.Galeria) && targetCor.Galeria.length > 0) {
+        targetCor.Galeria.forEach((img: any) => {
+          if (img?.url && !list.some((p) => p.url === img.url)) list.push(img);
+        });
+      } else if (targetCor.Miniatura?.url) {
+        list.push(targetCor.Miniatura as MediaItem);
       }
-    }
+      return list;
+    };
 
-    // 3. Fotos das opções selecionadas nos grupos (apenas do campo Galeria)
-    if (hasVariationGroups) {
-      Object.values(selectedGroupOptions).forEach((opt: any) => {
-        if (opt.Galeria && Array.isArray(opt.Galeria)) {
-          opt.Galeria.forEach((img: any) => {
-            if (img?.url && !photos.some((p) => p.url === img.url)) {
-              photos.push(img);
-            }
-          });
-        }
-      });
-    }
-
-    // 5. Outras fotos para enriquecer a navegação (outros revestimentos e variações)
-    if (hasRevestimentos) {
-      for (const rev of revestimentos) {
-        if (!rev.Cores) continue;
-        for (const cor of rev.Cores) {
-          if (cor.Nome_cor === selectedCorRevestimento?.Nome_cor) continue;
-          if (cor.Galeria && cor.Galeria.length > 0) {
-            for (const img of cor.Galeria) {
-              if (!photos.some((p) => p.url === img.url)) {
-                photos.push(img as MediaItem);
-              }
-            }
+    // 4. Fotos do grupo de componentes/acessórios ativo - APENAS da Galeria
+    const getGroupPhotos = (): MediaItem[] => {
+      if (!hasVariationGroups) return [];
+      const list: MediaItem[] = [];
+      if (lastClickedGroupOption?.Galeria && Array.isArray(lastClickedGroupOption.Galeria) && lastClickedGroupOption.Galeria.length > 0) {
+        lastClickedGroupOption.Galeria.forEach((img: any) => {
+          if (img?.url && !list.some((p) => p.url === img.url)) list.push(img);
+        });
+      } else {
+        // Se ainda não houve clique, verifica a primeira opção selecionada que tenha galeria
+        for (const g of variationGroups) {
+          const opt = selectedGroupOptions[g.Titulo];
+          if (opt?.Galeria && Array.isArray(opt.Galeria) && opt.Galeria.length > 0) {
+            opt.Galeria.forEach((img: any) => {
+              if (img?.url && !list.some((p) => p.url === img.url)) list.push(img);
+            });
+            break;
           }
         }
       }
+      return list;
+    };
+
+    // 5. Galeria geral na raiz do produto
+    const getRootPhotos = (): MediaItem[] => {
+      if (product.Galeria && Array.isArray(product.Galeria)) {
+        return product.Galeria.filter((img: any) => Boolean(img?.url));
+      }
+      return [];
+    };
+
+    // Pega as fotos conforme o tipo de seleção ativa mais recente
+    let activePhotos: MediaItem[] = [];
+
+    if (lastActiveSelectionType === "variacao") {
+      activePhotos = getVariationPhotos();
+    } else if (lastActiveSelectionType === "revestimento") {
+      activePhotos = getRevestimentoPhotos();
+      if (activePhotos.length === 0) activePhotos = getConfiguracaoPhotos();
+    } else if (lastActiveSelectionType === "group") {
+      activePhotos = getGroupPhotos();
+      if (activePhotos.length === 0) activePhotos = getConfiguracaoPhotos();
+    } else if (lastActiveSelectionType === "configuracao") {
+      activePhotos = getConfiguracaoPhotos();
     }
 
-    for (const v of variations) {
-      if (v === currentVariation) continue;
-      if (v.Galeria && v.Galeria.length > 0) {
-        for (const img of v.Galeria) {
-          if (!photos.some((p) => p.url === img.url)) {
-            photos.push(img);
-          }
-        }
+    // Se ainda não tem fotos pelo tipo de clique (ex: primeiro carregamento da página):
+    if (activePhotos.length === 0) {
+      if (hasConfiguracoes) {
+        activePhotos = getConfiguracaoPhotos();
+      }
+      if (activePhotos.length === 0 && hasRevestimentos) {
+        activePhotos = getRevestimentoPhotos();
+      }
+      if (activePhotos.length === 0 && variations.length > 0) {
+        activePhotos = getVariationPhotos();
+      }
+      if (activePhotos.length === 0 && hasVariationGroups) {
+        activePhotos = getGroupPhotos();
       }
     }
 
-    if (photos.length > 0) return photos;
+    // Se a opção selecionada possui fotos cadastradas, exibe APENAS as fotos dessa opção!
+    if (activePhotos.length > 0) {
+      return activePhotos;
+    }
+
+    // Fallback: se a opção selecionada não tiver fotos próprias, usa as fotos da raiz do produto
+    const rootPhotos = getRootPhotos();
+    if (rootPhotos.length > 0) {
+      return rootPhotos;
+    }
+
     return [];
-  }, [hasRevestimentos, selectedCorRevestimento, revestimentos, currentVariation, product.Galeria, hasVariationGroups, selectedGroupOptions, variations]);
+  }, [
+    lastActiveSelectionType,
+    currentVariation,
+    hasConfiguracoes,
+    configuracoes,
+    selectedConfiguracao,
+    lastClickedConfiguracao,
+    hasRevestimentos,
+    selectedCorRevestimento,
+    lastClickedCor,
+    hasVariationGroups,
+    variationGroups,
+    selectedGroupOptions,
+    lastClickedGroupOption,
+    product.Galeria,
+    variations,
+  ]);
 
   // Imagem ativa atualmente na tela
   const activeImage = currentGallery[activeImageIndex] || currentGallery[0];
@@ -335,11 +564,11 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
   // Imagem de miniatura para o botão flutuante / cápsula
   const floatingBtnThumbUrl =
+    (product.Galeria?.[0]?.url && getStrapiMedia(product.Galeria[0].url)) ||
     (selectedCorRevestimento?.Miniatura?.url && getStrapiMedia(selectedCorRevestimento.Miniatura.url)) ||
     (selectedCorRevestimento?.Galeria?.[0]?.url && getStrapiMedia(selectedCorRevestimento.Galeria[0].url)) ||
     (currentVariation?.Miniatura?.url && getStrapiMedia(currentVariation.Miniatura.url)) ||
     (currentVariation?.Galeria?.[0]?.url && getStrapiMedia(currentVariation.Galeria[0].url)) ||
-    (product.Galeria?.[0]?.url && getStrapiMedia(product.Galeria[0].url)) ||
     activeImageUrl;
 
   // Sincroniza a imagem ativa com o contexto global do produto (para Compre Junto, etc.)
@@ -394,186 +623,56 @@ export default function ProductHero({ product }: ProductHeroProps) {
     setActiveImageIndex(0); // Reseta a imagem para a primeira foto da cor escolhida
   };
 
-  // Preço base e regular (suporta revestimentos em 3 camadas, cores legadas e grupos modulares)
-  const basePrice = useMemo(() => {
-    let base = 0;
-    let additionalFromRevestimento = 0;
-
-    // 0. Revestimento ativo (3 camadas)
-    if (hasRevestimentos && selectedCorRevestimento) {
-      if (selectedCorRevestimento.Preco_promocional && Number(selectedCorRevestimento.Preco_promocional) > 0) {
-        base = Number(selectedCorRevestimento.Preco_promocional);
-      } else if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
-        base = Number(selectedCorRevestimento.Preco);
-      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
-        base = Number(selectedCorRevestimento.Preco_diferenciado);
-      }
-      if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
-        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
-      }
-    }
-
-    // 0.5. Medida selecionada (define preço base ou tem acréscimo)
-    let additionalFromMedida = 0;
-    if (hasMedidas && selectedMedida) {
-      if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
-        base = Number(selectedMedida.Preco_promocional);
-      } else if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
-        base = Number(selectedMedida.Preco);
-      }
-      if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
-        additionalFromMedida = Number(selectedMedida.Preco_adicional);
-      }
-    }
-
-    // 1. Preço da cor ativa da cadeira (legado)
-    if (base === 0) {
-      if (currentVariation?.Preco_promocional && Number(currentVariation.Preco_promocional) > 0) {
-        base = Number(currentVariation.Preco_promocional);
-      } else if (currentVariation?.Preco && Number(currentVariation.Preco) > 0) {
-        base = Number(currentVariation.Preco);
-      } else if (currentVariation?.Preco_diferenciado && Number(currentVariation.Preco_diferenciado) > 0) {
-        base = Number(currentVariation.Preco_diferenciado);
-      } else if (product.Preco_promocional && Number(product.Preco_promocional) > 0) {
-        base = Number(product.Preco_promocional);
-      } else if (product.Preco && Number(product.Preco) > 0) {
-        base = Number(product.Preco);
-      }
-    }
-
-    // 2. Se não achou na cor nem na raiz, busca em opções dos grupos
-    if (base === 0 && hasVariationGroups) {
-      for (const opt of Object.values(selectedGroupOptions)) {
-        if (opt.Preco_promocional && Number(opt.Preco_promocional) > 0) {
-          base = Number(opt.Preco_promocional);
-          break;
-        }
-        if (opt.Preco && Number(opt.Preco) > 0) {
-          base = Number(opt.Preco);
-          break;
-        }
-      }
-    }
-
-    // 3. Adicionais dos grupos + adicional do revestimento + adicional da medida
-    const additionalFromGroups = hasVariationGroups
-      ? Object.values(selectedGroupOptions).reduce(
-          (sum, opt) => sum + (Number(opt.Preco_adicional) || 0),
-          0
-        )
-      : 0;
-
-    const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
-
-    return base > 0 ? base + totalAdditional : (totalAdditional > 0 ? totalAdditional : 0);
-  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
-
-  const regularPrice = useMemo(() => {
-    let reg = 0;
-    let additionalFromRevestimento = 0;
-
-    // 0. Revestimento ativo (3 camadas)
-    if (hasRevestimentos && selectedCorRevestimento) {
-      if (selectedCorRevestimento.Preco && Number(selectedCorRevestimento.Preco) > 0) {
-        reg = Number(selectedCorRevestimento.Preco);
-      } else if (selectedCorRevestimento.Preco_diferenciado && Number(selectedCorRevestimento.Preco_diferenciado) > 0) {
-        reg = Number(selectedCorRevestimento.Preco_diferenciado);
-      }
-      if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
-        additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
-      }
-    }
-
-    // 0.5. Medida selecionada (regular)
-    let additionalFromMedida = 0;
-    if (hasMedidas && selectedMedida) {
-      if (selectedMedida.Preco && Number(selectedMedida.Preco) > 0) {
-        reg = Number(selectedMedida.Preco);
-      } else if (selectedMedida.Preco_promocional && Number(selectedMedida.Preco_promocional) > 0) {
-        reg = Number(selectedMedida.Preco_promocional);
-      }
-      if (selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0) {
-        additionalFromMedida = Number(selectedMedida.Preco_adicional);
-      }
-    }
-
-    // 1. Preço regular da cor ativa da cadeira (legado)
-    if (reg === 0) {
-      if (currentVariation?.Preco && Number(currentVariation.Preco) > 0) {
-        reg = Number(currentVariation.Preco);
-      } else if (currentVariation?.Preco_diferenciado && Number(currentVariation.Preco_diferenciado) > 0) {
-        reg = Number(currentVariation.Preco_diferenciado);
-      } else if (product.Preco && Number(product.Preco) > 0) {
-        reg = Number(product.Preco);
-      } else if (product.Preco_promocional && Number(product.Preco_promocional) > 0) {
-        reg = Number(product.Preco_promocional);
-      }
-    }
-
-    const additionalFromGroups = hasVariationGroups
-      ? Object.values(selectedGroupOptions).reduce(
-          (sum, opt) => sum + (Number(opt.Preco_adicional) || 0),
-          0
-        )
-      : 0;
-
-    const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
-
-    return reg > 0 ? reg + totalAdditional : (totalAdditional > 0 ? totalAdditional : 0);
-  }, [hasRevestimentos, selectedCorRevestimento, currentVariation, product, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
-
-  const hasDiscount = regularPrice > 0 && basePrice > 0 && basePrice < regularPrice;
-
-  const isQuoteOnly = !basePrice || basePrice <= 0;
-
   const cart = useCart();
 
   const handleQuoteRequest = () => {
     const configLines: string[] = [];
+    if (hasConfiguracoes && selectedConfiguracao) {
+      configLines.push(`• Configuração: ${selectedConfiguracao.Nome}${!isQuoteOnly && selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedConfiguracao.Preco_adicional))})` : ""}`);
+    }
     if (hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
-      configLines.push(`• Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})${selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedCorRevestimento.Preco_adicional))})` : ""}`);
+      configLines.push(`• Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})${!isQuoteOnly && selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedCorRevestimento.Preco_adicional))})` : ""}`);
     }
     if (availableColors.length > 0 && selectedColor) {
       configLines.push(`• Cor: ${selectedColor}`);
     }
     if (hasVariationGroups) {
       Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
-        configLines.push(`• ${groupTitle}: ${opt.Nome}${opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? ` (+${formatBRL(Number(opt.Preco_adicional))})` : ""}`);
+        configLines.push(`• ${groupTitle}: ${opt.Nome}${!isQuoteOnly && opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? ` (+${formatBRL(Number(opt.Preco_adicional))})` : ""}`);
       });
     }
     if (hasMedidas && selectedMedida) {
-      configLines.push(`• Medida: ${selectedMedida.Titulo}${selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedMedida.Preco_adicional))})` : ""}`);
+      configLines.push(`• Medida: ${selectedMedida.Titulo}${!isQuoteOnly && selectedMedida.Preco_adicional && Number(selectedMedida.Preco_adicional) > 0 ? ` (+${formatBRL(Number(selectedMedida.Preco_adicional))})` : ""}`);
     }
 
     const configDetails = configLines.length > 0 ? configLines.join("\n") : "";
-    const variationLabel = productCtx?.variationDisplayName || (
-      currentVariation?.Nome_cor ? `Cor: ${currentVariation.Nome_cor}` : ""
-    );
+    const variationLabel = productCtx?.variationDisplayName || (currentVariation?.Nome_cor ? `Cor: ${currentVariation.Nome_cor}` : "");
 
-    const msg = `Olá! Gostaria de solicitar um orçamento para o produto: *${product.Nome}*${
-      configLines.length > 0
+    const msg = `Olá! Gostaria de solicitar um orçamento para o produto: *${product.Nome}*${configLines.length > 0
         ? `\n\n*Configurações Escolhidas:*\n${configDetails}`
         : (variationLabel ? ` (Variação: ${variationLabel})` : "")
-    } - Quantidade: ${quantity}.`;
+      } - Quantidade: ${quantity}.`;
     const whatsappUrl = `https://wa.me/554530550000?text=${encodeURIComponent(msg)}`;
     window.open(whatsappUrl, "_blank");
   };
 
   const handleAddToCart = () => {
-    const thumbUrl = hasRevestimentos && selectedCorRevestimento
+    const thumbUrl = !isQuoteOnly && hasRevestimentos && selectedCorRevestimento
       ? (selectedCorRevestimento.Galeria?.[0] ? getStrapiMedia(selectedCorRevestimento.Galeria[0].url) : (selectedCorRevestimento.Miniatura ? getStrapiMedia(selectedCorRevestimento.Miniatura.url) : activeImageUrl))
-      : hasVariationGroups
-      ? (activeGroupPhotoUrl || (product.Imagem_destaque?.url ? getStrapiMedia(product.Imagem_destaque.url) : null))
-      : (currentVariation?.Miniatura
-          ? getStrapiMedia(currentVariation.Miniatura.url)
-          : currentVariation?.Galeria && currentVariation.Galeria[0]
-          ? getStrapiMedia(currentVariation.Galeria[0].url)
-          : activeImageUrl);
+      : !isQuoteOnly && hasVariationGroups
+        ? (activeGroupPhotoUrl || (product.Galeria?.[0]?.url ? getStrapiMedia(product.Galeria[0].url) : null))
+        : (product.Galeria?.[0]?.url
+          ? getStrapiMedia(product.Galeria[0].url)
+          : currentVariation?.Miniatura
+            ? getStrapiMedia(currentVariation.Miniatura.url)
+            : currentVariation?.Galeria && currentVariation.Galeria[0]
+              ? getStrapiMedia(currentVariation.Galeria[0].url)
+              : activeImageUrl);
 
     const selectedWarranty = product.garantias?.find((g: any) => g.id === selectedWarrantyId);
 
     const options: string[] = [];
-    if (hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
+    if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
       options.push(`Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`);
     }
     if (availableColors.length > 0 && selectedColor) {
@@ -581,7 +680,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
     } else if (!hasRevestimentos && currentVariation?.Nome_cor) {
       options.push(`Cor: ${currentVariation.Nome_cor}`);
     }
-    if (hasVariationGroups) {
+    if (!isQuoteOnly && hasVariationGroups) {
       Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
         options.push(`${groupTitle}: ${opt.Nome}`);
       });
@@ -594,11 +693,13 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
     const medidaKey = hasMedidas && selectedMedida ? `medida:${selectedMedida.Titulo}` : "";
 
-    const compositeCartId = hasRevestimentos && selectedRevestimento && selectedCorRevestimento
-      ? `${product.id}-${selectedRevestimento.Nome}:${selectedCorRevestimento.Nome_cor}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
-      : hasVariationGroups
-      ? `${product.id}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
-      : `${product.id}-${variationLabel}-${selectedWarrantyId || 0}`;
+    const compositeCartId = isQuoteOnly
+      ? `${product.id}-quote-${selectedWarrantyId || 0}`
+      : hasRevestimentos && selectedRevestimento && selectedCorRevestimento
+        ? `${product.id}-${selectedRevestimento.Nome}:${selectedCorRevestimento.Nome_cor}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
+        : hasVariationGroups
+          ? `${product.id}-${Object.entries(selectedGroupOptions).map(([g, o]) => `${g}:${o.Nome}`).join("|")}-${medidaKey}-${selectedWarrantyId || 0}`
+          : `${product.id}-${variationLabel}-${selectedWarrantyId || 0}`;
 
     cart.addItem({
       id: compositeCartId,
@@ -608,38 +709,17 @@ export default function ProductHero({ product }: ProductHeroProps) {
       variationName: variationLabel,
       options: options.length > 0 ? options : undefined,
       warrantyName: selectedWarranty?.Nome,
-      price: unitTotalPrice,
+      price: isQuoteOnly ? 0 : unitTotalPrice,
       isQuoteOnly: isQuoteOnly,
       imageUrl: thumbUrl || null,
       quantity: quantity,
     });
   };
 
-  // Preço adicional da garantia selecionada
-  const warrantyAdditionalPrice = useMemo(() => {
-    if (selectedWarrantyId === 0) return 0;
-    const found = product.garantias?.find((g) => g.id === selectedWarrantyId);
-    return found?.Preco_adicional || 0;
-  }, [selectedWarrantyId, product.garantias]);
-
-  const unitTotalPrice = basePrice + warrantyAdditionalPrice;
-  const unitRegularPrice = regularPrice + warrantyAdditionalPrice;
-
-  // Lista de garantias: Padrão + Strapi
-  const warrantyList = [
-    {
-      id: 0,
-      Nome: "Garantia padrão",
-      Descricao: "",
-      Preco_adicional: 0,
-    },
-    ...(product.garantias || []),
-  ];
-
   return (
     <section ref={heroSectionRef} className="w-full">
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_560px] xl:grid-cols-[minmax(0,1fr)_600px] gap-8 lg:gap-10 xl:gap-[50px] items-start">
-        
+
         {/* ========================================================================= */}
         {/* LADO ESQUERDO: GALERIA DE IMAGENS DO PRODUTO COM ZOOM NO CLIQUE           */}
         {/* ========================================================================= */}
@@ -662,9 +742,8 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   ? `${activeImage.width} / ${activeImage.height}`
                   : "1 / 1",
             }}
-            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-start touch-pan-y ${
-              activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
-            }`}
+            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-start touch-pan-y ${activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
+              }`}
           >
             {activeImageUrl ? (
               <div className="relative w-full h-full overflow-hidden rounded-none md:rounded-[26px] flex items-center justify-center bg-white">
@@ -701,9 +780,8 @@ export default function ProductHero({ product }: ProductHeroProps) {
             {/* Setas de navegação (Previous / Next) - Apenas Desktop */}
             {currentGallery.length > 1 && (
               <div
-                className={`hidden md:block transition-opacity duration-200 ${
-                  isZoomed ? "opacity-0 pointer-events-none" : "opacity-100"
-                }`}
+                className={`hidden md:block transition-opacity duration-200 ${isZoomed ? "opacity-0 pointer-events-none" : "opacity-100"
+                  }`}
               >
                 <button
                   type="button"
@@ -738,9 +816,8 @@ export default function ProductHero({ product }: ProductHeroProps) {
             {/* Indicador discreto de zoom no canto inferior (Apenas Desktop) */}
             {activeImageUrl && (
               <div
-                className={`hidden md:flex absolute bottom-3 right-3 z-10 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-xs text-white text-[11px] font-sans items-center gap-1.5 pointer-events-none transition-opacity duration-300 shadow-md ${
-                  isZoomed ? "opacity-90" : "opacity-0 group-hover:opacity-80"
-                }`}
+                className={`hidden md:flex absolute bottom-3 right-3 z-10 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-xs text-white text-[11px] font-sans items-center gap-1.5 pointer-events-none transition-opacity duration-300 shadow-md ${isZoomed ? "opacity-90" : "opacity-0 group-hover:opacity-80"
+                  }`}
               >
                 {isZoomed ? (
                   <>
@@ -779,11 +856,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     setActiveImageIndex(dotIdx);
                   }}
                   aria-label={`Ver foto ${dotIdx + 1} de ${currentGallery.length}`}
-                  className={`transition-all duration-300 rounded-full cursor-pointer ${
-                    dotIdx === activeImageIndex
+                  className={`transition-all duration-300 rounded-full cursor-pointer ${dotIdx === activeImageIndex
                       ? "w-2 h-2 bg-[#000000]"
                       : "w-2 h-2 bg-[#D1D5DB] hover:bg-stone-500"
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -794,7 +870,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
         {/* LADO DIREITO: INFOS, SELETOR DE COR, GARANTIA E AÇÕES DE COMPRA          */}
         {/* ========================================================================= */}
         <div className="w-full max-w-[600px] flex flex-col justify-start px-4 sm:px-6 md:px-0">
-          
+
           {/* Título do Produto */}
           <h1 className="text-[26px] md:text-[32px] font-heading font-semibold text-[#000000] leading-tight tracking-tight">
             {product.Nome}
@@ -867,13 +943,13 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       onClick={() => {
                         setIsZoomed(false);
                         setSelectedColor(colorObj.name);
+                        setLastActiveSelectionType("variacao");
                         setActiveImageIndex(0);
                       }}
-                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${
-                        isSelected
+                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${isSelected
                           ? "border-[#000000] bg-white shadow-xs"
                           : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
-                      }`}
+                        }`}
                     >
                       {/* Lado esquerdo: Bolinha de cor + Thumbnail opcional + Nome */}
                       <div className="flex items-center gap-3">
@@ -949,11 +1025,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                         setIsZoomed(false);
                         setSelectedMedida(med);
                       }}
-                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${
-                        isSelected
+                      className={`w-full px-4 py-2.5 md:py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${isSelected
                           ? "border-[#000000] bg-white shadow-xs"
                           : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
-                      }`}
+                        }`}
                     >
                       {/* Lado esquerdo: Nome da medida + Descrição */}
                       <div className="flex flex-col">
@@ -1042,7 +1117,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
               {isRevestimentoSectionOpen && (
                 <div className="mt-3.5 flex flex-col">
                   <p className="text-[12px] font-sans text-[#69736B] mb-3">
-                    Selecione o tipo de acabamento e a cor ideal para o seu ambiente
+                    {isQuoteOnly
+                      ? "Consulte os acabamentos e cores disponíveis para este modelo"
+                      : "Selecione o tipo de acabamento e a cor ideal para o seu ambiente"}
                   </p>
 
                   {/* CAMADA 2: ACORDEÕES SANFONA POR TIPO DE REVESTIMENTO (MATERIAL) */}
@@ -1055,11 +1132,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       return (
                         <div
                           key={rev.Nome}
-                          className={`rounded-[8px] border transition-all overflow-hidden ${
-                            isSelectedRev
+                          className={`rounded-[8px] border transition-all overflow-hidden ${isSelectedRev
                               ? "border-stone-900 bg-stone-50/20 shadow-xs"
                               : "border-stone-200 bg-white hover:border-stone-300"
-                          }`}
+                            }`}
                         >
                           {/* Cabeçalho Sanfona do Material */}
                           <button
@@ -1134,19 +1210,31 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 const thumbImg = cor.Miniatura?.url ? getStrapiMedia(cor.Miniatura.url) : null;
 
                                 return (
-                                  <button
+                                  <div
                                     key={cor.Nome_cor}
-                                    type="button"
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all cursor-pointer ${isCorSelected
+                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
+                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                                      }`}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => {
                                       setIsZoomed(false);
+                                      setLastActiveSelectionType("revestimento");
+                                      setLastClickedCor(cor);
                                       selectRevestimentoAndCor(rev, cor);
                                       setActiveImageIndex(0);
                                     }}
-                                    className={`group/cor flex items-center gap-2 px-3 py-2 rounded-[6px] border transition-all cursor-pointer text-left min-h-[46px] ${
-                                      isCorSelected
-                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
-                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
-                                    }`}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setIsZoomed(false);
+                                        setLastActiveSelectionType("revestimento");
+                                        setLastClickedCor(cor);
+                                        selectRevestimentoAndCor(rev, cor);
+                                        setActiveImageIndex(0);
+                                      }
+                                    }}
                                   >
                                     {thumbImg ? (
                                       <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
@@ -1166,18 +1254,18 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                     )}
 
                                     <div className="flex flex-col">
-                                      <span className={`text-[12px] sm:text-[13px] font-sans ${isCorSelected ? "font-semibold text-stone-900" : "font-normal text-stone-700 group-hover/cor:text-black"}`}>
+                                      <span className={`text-[12px] sm:text-[13px] font-sans ${isCorSelected ? "font-semibold text-stone-900" : "font-normal text-stone-700"}`}>
                                         {cor.Nome_cor}
                                       </span>
-                                      {cor.Preco_adicional && Number(cor.Preco_adicional) > 0 ? (
+                                      {!isQuoteOnly && cor.Preco_adicional && Number(cor.Preco_adicional) > 0 ? (
                                         <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5">
                                           +{formatBRL(Number(cor.Preco_adicional))}
                                         </span>
-                                      ) : (
+                                      ) : !isQuoteOnly ? (
                                         <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5">
                                           Sem acréscimo
                                         </span>
-                                      )}
+                                      ) : null}
                                     </div>
 
                                     {isCorSelected && (
@@ -1187,7 +1275,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                         </svg>
                                       </div>
                                     )}
-                                  </button>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -1201,7 +1289,149 @@ export default function ProductHero({ product }: ProductHeroProps) {
             </div>
           )}
 
+          {/* ----------------------------------------------------------------------- */}
+          {/* 2.5. CONFIGURAÇÃO DO MODELO (SEÇÃO DEDICADA DE VARIAÇÃO)                */}
+          {/* ----------------------------------------------------------------------- */}
+          {hasConfiguracoes && (
+            <div className="mt-5 md:mt-7 flex flex-col">
+              <button
+                type="button"
+                onClick={() => setIsConfiguracaoSectionOpen((prev) => !prev)}
+                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors"
+                aria-expanded={isConfiguracaoSectionOpen}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
+                    Modelo
+                  </span>
+                  {selectedConfiguracao && (
+                    <span className="text-[13px] font-sans text-stone-500 font-normal">
+                      — {selectedConfiguracao.Nome}
+                    </span>
+                  )}
+                </div>
 
+                <div className="flex items-center gap-2.5">
+                  {configuracoes.length > 0 && (
+                    <span className="text-[11px] font-sans text-stone-400">
+                      ({configuracoes.length} {configuracoes.length === 1 ? "opção" : "opções"})
+                    </span>
+                  )}
+                  <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1">
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={`transition-transform duration-200 ${!isConfiguracaoSectionOpen ? "rotate-180" : ""}`}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
+
+              {isConfiguracaoSectionOpen && (
+                <div className="mt-3.5 flex flex-col">
+                  <p className="text-[12px] font-sans text-[#69736B] mb-3">
+                    Selecione o modelo e configuração da cadeira
+                  </p>
+
+                  <div className="flex flex-col gap-2">
+                    {configuracoes.map((cfg) => {
+                      const isSelected = selectedConfiguracao?.Nome === cfg.Nome;
+                      const photoUrl = cfg.Galeria?.[0]?.url
+                        ? getStrapiMedia(cfg.Galeria[0].url)
+                        : null;
+
+                      return (
+                        <div
+                          key={cfg.Nome}
+                          className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer ${isSelected
+                              ? "border-stone-900 bg-stone-50/40 ring-1 ring-stone-900 shadow-2xs"
+                              : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                            }`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setIsZoomed(false);
+                            setLastActiveSelectionType("configuracao");
+                            setLastClickedConfiguracao(cfg);
+                            selectConfiguracao(cfg);
+                            setActiveImageIndex(0);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setIsZoomed(false);
+                              setLastActiveSelectionType("configuracao");
+                              setLastClickedConfiguracao(cfg);
+                              selectConfiguracao(cfg);
+                              setActiveImageIndex(0);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {photoUrl ? (
+                              <div className="relative w-10 h-10 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
+                                <Image
+                                  src={photoUrl}
+                                  alt={cfg.Nome}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ) : null}
+
+                            <div className="flex flex-col min-w-0">
+                              <span
+                                className={`text-[13px] sm:text-[14px] font-sans ${isSelected
+                                    ? "font-semibold text-stone-900"
+                                    : "font-normal text-stone-700"
+                                  }`}
+                              >
+                                {cfg.Nome}
+                              </span>
+                              {!isQuoteOnly && cfg.Preco_adicional && Number(cfg.Preco_adicional) > 0 ? (
+                                <span className="text-[11px] font-sans text-[#006642] font-medium leading-none mt-1">
+                                  +{formatBRL(Number(cfg.Preco_adicional))}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="shrink-0 ml-3">
+                            {isSelected ? (
+                              <div className="w-5 h-5 rounded-full bg-stone-900 text-white flex items-center justify-center">
+                                <svg
+                                  width="10"
+                                  height="10"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="3.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                >
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border border-stone-300" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ----------------------------------------------------------------------- */}
           {/* 3. COMPONENTES E ACESSÓRIOS (ACORDEÃO PAI COM SUB-ACORDEÕES)             */}
@@ -1247,7 +1477,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
               {isComponentsSectionOpen && (
                 <div className="mt-3.5 flex flex-col">
                   <p className="text-[12px] font-sans text-[#69736B] mb-3">
-                    Personalize os componentes e opcionais da sua cadeira
+                    {isQuoteOnly
+                      ? "Consulte as configurações e opcionais disponíveis para este modelo"
+                      : "Personalize os componentes e opcionais da sua cadeira"}
                   </p>
 
                   <div className="flex flex-col gap-2.5">
@@ -1258,11 +1490,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       return (
                         <div
                           key={group.Titulo}
-                          className={`rounded-[8px] border transition-all overflow-hidden ${
-                            currentSelected
+                          className={`rounded-[8px] border transition-all overflow-hidden ${currentSelected
                               ? "border-stone-900 bg-stone-50/20 shadow-xs"
                               : "border-stone-200 bg-white hover:border-stone-300"
-                          }`}
+                            }`}
                         >
                           {/* Cabeçalho Sanfona do Componente */}
                           <button
@@ -1285,10 +1516,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                             <div className="flex items-center gap-2.5">
                               {currentSelected && (
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
-                                  {currentSelected.Foto?.url && getStrapiMedia(currentSelected.Foto.url) ? (
+                                  {currentSelected.Galeria?.[0]?.url && getStrapiMedia(currentSelected.Galeria[0].url) ? (
                                     <div className="relative w-3.5 h-3.5 rounded-full overflow-hidden border border-black/10 shrink-0">
                                       <Image
-                                        src={getStrapiMedia(currentSelected.Foto.url)!}
+                                        src={getStrapiMedia(currentSelected.Galeria[0].url)!}
                                         alt={currentSelected.Nome}
                                         fill
                                         className="object-cover"
@@ -1329,23 +1560,35 @@ export default function ProductHero({ product }: ProductHeroProps) {
                             <div className="p-3 pt-1 flex flex-wrap gap-2 sm:gap-2.5 items-start">
                               {group.Opcoes?.map((opt) => {
                                 const isSelected = currentSelected?.Nome === opt.Nome;
-                                const photoUrl = opt.Foto?.url ? getStrapiMedia(opt.Foto.url) : null;
+                                const photoUrl = opt.Galeria?.[0]?.url ? getStrapiMedia(opt.Galeria[0].url) : null;
                                 const dotColor = normalizeHex(opt.Cor_hex);
 
                                 return (
-                                  <button
+                                  <div
                                     key={opt.Nome}
-                                    type="button"
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all cursor-pointer ${isSelected
+                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
+                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
+                                      }`}
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => {
                                       setIsZoomed(false);
+                                      setLastActiveSelectionType("group");
+                                      setLastClickedGroupOption(opt);
                                       selectGroupOption(group.Titulo, opt);
                                       setActiveImageIndex(0);
                                     }}
-                                    className={`group/opt flex items-center gap-2 px-3 py-2 rounded-[6px] border transition-all cursor-pointer text-left min-h-[46px] ${
-                                      isSelected
-                                        ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs"
-                                        : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
-                                    }`}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setIsZoomed(false);
+                                        setLastActiveSelectionType("group");
+                                        setLastClickedGroupOption(opt);
+                                        selectGroupOption(group.Titulo, opt);
+                                        setActiveImageIndex(0);
+                                      }
+                                    }}
                                   >
                                     {photoUrl ? (
                                       <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
@@ -1366,23 +1609,22 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
                                     <div className="flex flex-col">
                                       <span
-                                        className={`text-[12px] sm:text-[13px] font-sans ${
-                                          isSelected
+                                        className={`text-[12px] sm:text-[13px] font-sans ${isSelected
                                             ? "font-semibold text-stone-900"
-                                            : "font-normal text-stone-700 group-hover/opt:text-black"
-                                        }`}
+                                            : "font-normal text-stone-700"
+                                          }`}
                                       >
                                         {opt.Nome}
                                       </span>
-                                      {opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? (
+                                      {!isQuoteOnly && opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? (
                                         <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5">
                                           +{formatBRL(Number(opt.Preco_adicional))}
                                         </span>
-                                      ) : (
+                                      ) : !isQuoteOnly ? (
                                         <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5">
                                           Sem acréscimo
                                         </span>
-                                      )}
+                                      ) : null}
                                     </div>
 
                                     {isSelected && (
@@ -1401,7 +1643,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                         </svg>
                                       </div>
                                     )}
-                                  </button>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -1442,11 +1684,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                         key={item.id}
                         type="button"
                         onClick={() => setSelectedWarrantyId(item.id)}
-                        className={`w-full px-4 py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${
-                          isSelected
+                        className={`w-full px-4 py-3 rounded-[6px] border text-left transition-all flex items-center justify-between group cursor-pointer ${isSelected
                             ? "border-[#000000] bg-white shadow-xs"
                             : "border-[#D1D5DB] bg-white hover:border-[#9CA3AF]"
-                        }`}
+                          }`}
                       >
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
@@ -1569,17 +1810,16 @@ export default function ProductHero({ product }: ProductHeroProps) {
           <div className="pointer-events-auto">
             {/* Container Unificado que se expande e recolhe suavemente (Morphing) */}
             <div
-              className={`relative flex items-center bg-white border border-[#D1D5DB] rounded-full overflow-hidden transition-all duration-600 ease-[cubic-bezier(0.25,1,0.5,1)] ${
-                isFloatingBarOpen
+              className={`relative flex items-center bg-white border border-[#D1D5DB] rounded-full overflow-hidden transition-all duration-600 ease-[cubic-bezier(0.25,1,0.5,1)] ${isFloatingBarOpen
                   ? "w-[92vw] sm:w-[500px] md:w-[530px] max-w-[92vw] sm:max-w-[500px] md:max-w-[530px] h-[46px] md:h-[48px] py-1 md:py-1.5 pl-2 md:pl-2.5 pr-1 md:pr-1.5 shadow-xl cursor-default"
                   : "w-11 h-11 md:w-12 md:h-12 max-w-[44px] md:max-w-[48px] p-0 justify-center shadow-lg cursor-pointer hover:scale-105 hover:border-black active:scale-95"
-              }`}
+                }`}
               onClick={
                 !isFloatingBarOpen
                   ? () => {
-                      manualCloseScrollY.current = null;
-                      setIsFloatingBarOpen(true);
-                    }
+                    manualCloseScrollY.current = null;
+                    setIsFloatingBarOpen(true);
+                  }
                   : undefined
               }
               title={!isFloatingBarOpen ? (isQuoteOnly ? "Solicitar orçamento" : "Ver informações e comprar") : undefined}
@@ -1595,11 +1835,10 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   }
                 }}
                 title={isFloatingBarOpen ? "Recolher para botão" : "Abrir barra de compra rápida"}
-                className={`relative shrink-0 flex items-center justify-center rounded-full transition-all duration-600 ease-[cubic-bezier(0.25,1,0.5,1)] ${
-                  isFloatingBarOpen
+                className={`relative shrink-0 flex items-center justify-center rounded-full transition-all duration-600 ease-[cubic-bezier(0.25,1,0.5,1)] ${isFloatingBarOpen
                     ? "w-7 h-7 md:w-8 md:h-8 hover:bg-gray-100 cursor-pointer mr-2 md:mr-2.5"
                     : "w-11 h-11 md:w-12 md:h-12 pointer-events-none"
-                }`}
+                  }`}
               >
                 {floatingBtnThumbUrl ? (
                   <div className="relative w-6 h-6 md:w-7 md:h-7">
@@ -1612,21 +1851,20 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   </div>
                 ) : (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3"/>
-                    <path d="M3 11v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0Z"/>
-                    <path d="M5 18v2"/>
-                    <path d="M19 18v2"/>
+                    <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" />
+                    <path d="M3 11v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0Z" />
+                    <path d="M5 18v2" />
+                    <path d="M19 18v2" />
                   </svg>
                 )}
               </button>
 
               {/* Conteúdo Expandido (Nome, Preço, Quantidade, Adicionar) com transição suave */}
               <div
-                className={`flex items-center justify-between gap-2.5 md:gap-3.5 flex-1 min-w-0 transition-opacity duration-200 ease-in-out ${
-                  isFloatingBarOpen
+                className={`flex items-center justify-between gap-2.5 md:gap-3.5 flex-1 min-w-0 transition-opacity duration-200 ease-in-out ${isFloatingBarOpen
                     ? "opacity-100 pointer-events-auto delay-150"
                     : "opacity-0 pointer-events-none delay-0 select-none"
-                }`}
+                  }`}
                 aria-hidden={!isFloatingBarOpen}
               >
                 {/* Informações: Nome + Preço */}

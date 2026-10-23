@@ -39,3 +39,37 @@ export function getStrapiMedia(url: string | null | undefined) {
   const cleanUrl = url.startsWith("/") ? url : `/${url}`;
   return `${baseUrl}${cleanUrl}`;
 }
+
+export function stripConfiguracoesParam(url: string): string {
+  try {
+    const u = new URL(url);
+    const newParams = new URLSearchParams();
+    for (const [key, value] of u.searchParams.entries()) {
+      if (key.includes("Configuracoes") || value.includes("Configuracoes")) {
+        continue;
+      }
+      newParams.append(key, value);
+    }
+    u.search = newParams.toString();
+    return u.toString();
+  } catch {
+    return url
+      .replace(/[?&]populate\[Configuracoes\][^&]*/g, "")
+      .replace(/[?&]filters\[.*?\]\[Configuracoes\][^&]*/g, "")
+      .replace(/[?&]&/g, "?");
+  }
+}
+
+/**
+ * Realiza fetch no Strapi com fallback resiliente para remoção de parâmetros
+ * do novo campo `Configuracoes` caso o Strapi remoto de produção ainda não tenha
+ * recebido o deploy do novo schema.
+ */
+export async function fetchStrapi(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, init);
+  if (!res.ok && url.includes("Configuracoes")) {
+    const fallbackUrl = stripConfiguracoesParam(url);
+    return fetch(fallbackUrl, init);
+  }
+  return res;
+}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getStrapiURL } from "@/utils/api";
+import { getStrapiURL, fetchStrapi } from "@/utils/api";
+import { expandProductsForListing } from "@/utils/productUtils";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
     `pagination[page]=${page}`,
     `pagination[pageSize]=${pageSize}`,
     "populate[Variacoes][populate]=*",
+    "populate[Configuracoes][populate]=*",
+    "populate[Grupos_variacao][populate][Opcoes][populate]=*",
+    "populate[Galeria]=true",
     "populate[marca]=true",
     "populate[categoria]=true",
     "populate[Imagem_destaque]=true",
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
   if (q) {
     const encoded = encodeURIComponent(q);
     queryParts.push(
-      `filters[$or][0][Nome][$containsi]=${encoded}&filters[$or][1][Subtitulo][$containsi]=${encoded}&filters[$or][2][marca][Nome][$containsi]=${encoded}&filters[$or][3][categoria][Nome][$containsi]=${encoded}`
+      `filters[$or][0][Nome][$containsi]=${encoded}&filters[$or][1][Subtitulo][$containsi]=${encoded}&filters[$or][2][marca][Nome][$containsi]=${encoded}&filters[$or][3][categoria][Nome][$containsi]=${encoded}&filters[$or][4][Grupos_variacao][Opcoes][Nome][$containsi]=${encoded}&filters[$or][5][Configuracoes][Nome][$containsi]=${encoded}`
     );
   }
 
@@ -98,7 +102,7 @@ export async function GET(request: NextRequest) {
   const url = getStrapiURL(`/api/produtos?${queryParts.join("&")}`);
 
   try {
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) {
       return NextResponse.json(
         { error: "Erro ao buscar produtos do Strapi" },
@@ -106,9 +110,11 @@ export async function GET(request: NextRequest) {
       );
     }
     const json = await res.json();
+    const rawItems = json.data || [];
+    const expandedItems = expandProductsForListing(rawItems, q);
     return NextResponse.json({
-      data: json.data || [],
-      meta: json.meta || { pagination: { page, pageSize, pageCount: 1, total: 0 } },
+      data: expandedItems,
+      meta: json.meta || { pagination: { page, pageSize, pageCount: 1, total: expandedItems.length } },
     });
   } catch (error) {
     console.error("Erro na rota /api/products:", error);

@@ -149,9 +149,9 @@ export default function SearchPanel({ isSearchOpen, onClose, maisBuscados }: Sea
                     className="flex items-center justify-between text-[13px] md:text-[14px] font-sans text-[#777777] hover:text-black transition-colors leading-relaxed"
                   >
                     <span className="truncate pr-4">{prod.Nome}</span>
-                    {prod.Variacoes?.[0]?.Preco && (
+                    {(prod.Preco !== undefined || prod.Variacoes?.[0]?.Preco !== undefined) && (
                       <span className="text-xs text-stone-400 shrink-0">
-                        {formatBRL(prod.Variacoes[0].Preco_promocional || prod.Variacoes[0].Preco)}
+                        {formatBRL(prod.Preco_promocional || prod.Preco || prod.Variacoes?.[0]?.Preco_promocional || prod.Variacoes?.[0]?.Preco)}
                       </span>
                     )}
                   </Link>

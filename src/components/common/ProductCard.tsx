@@ -49,33 +49,21 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
 
   const rootGaleria = Array.isArray(product.Galeria) ? product.Galeria : [];
 
+  // 1ª foto da capa: Sempre a 1ª foto da galeria do produto (raiz ou da configuração expandida, ignorando campo Foto)
   const img1 =
-    miniatura ||
-    galeria[0] ||
     rootGaleria[0] ||
-    firstGroupOpt?.Foto ||
-    product.Foto_mais_vendidos ||
+    galeria[0] ||
+    miniatura ||
     null;
 
+  // 2ª foto para hover: Apenas se houver uma segunda foto na galeria do próprio item (nunca puxa de outra variação!)
   let img2 = null;
-  if (miniatura) {
-    // Se a 1ª foto foi a Miniatura, a foto do hover é uma foto diferente da galeria
-    img2 =
-      galeria.find(
-        (g: any) => g?.id !== miniatura?.id && g?.url !== miniatura?.url
-      ) ||
-      galeria[0] ||
-      rootGaleria[1] ||
-      null;
-  } else if (galeria.length > 1) {
-    // Se não tem miniatura, a 1ª foto foi galeria[0], então a 2ª foto do hover é galeria[1]
-    img2 = galeria[1] || null;
-  } else if (rootGaleria.length > 1) {
-    // Quando não tem variações tradicionais, usa as fotos da galeria na raiz para o hover
+  if (rootGaleria.length > 1) {
     img2 = rootGaleria[1] || null;
-  } else if (product.Grupos_variacao?.[0]?.Opcoes && product.Grupos_variacao[0].Opcoes.length > 1) {
-    const secondOpt = product.Grupos_variacao[0].Opcoes[1];
-    img2 = secondOpt.Foto || null;
+  } else if (galeria.length > 1) {
+    img2 = galeria[1] || null;
+  } else if (firstVariation?.Miniatura && galeria[0] && (galeria[0]?.id !== firstVariation.Miniatura?.id && galeria[0]?.url !== firstVariation.Miniatura?.url)) {
+    img2 = galeria[0] || null;
   }
 
   // Evita duplicar a mesma foto no hover caso sejam idênticas

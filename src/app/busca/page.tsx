@@ -1,7 +1,8 @@
 import React from "react";
-import { getStrapiURL } from "@/utils/api";
+import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import ProductListing from "@/components/common/ProductListing";
 import { ProductCardItem } from "@/components/common/ProductCard";
+import { expandProductsForListing } from "@/utils/productUtils";
 
 interface SearchPageProps {
   searchParams: Promise<{
@@ -20,17 +21,20 @@ async function getSearchProducts(query: string): Promise<ProductCardItem[]> {
       `filters[$or][1][Subtitulo][$containsi]=${encoded}`,
       `filters[$or][2][marca][Nome][$containsi]=${encoded}`,
       `filters[$or][3][categoria][Nome][$containsi]=${encoded}`,
+      `filters[$or][4][Grupos_variacao][Opcoes][Nome][$containsi]=${encoded}`,
+      `filters[$or][5][Configuracoes][Nome][$containsi]=${encoded}`,
     ].join("&");
 
     const url = getStrapiURL(
-      `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
 
     const json = await res.json();
-    return json.data || [];
+    const rawItems = json.data || [];
+    return expandProductsForListing(rawItems, query);
   } catch (error) {
     console.error("Erro ao buscar produtos na pesquisa:", error);
     return [];

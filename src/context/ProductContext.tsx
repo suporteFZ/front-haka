@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
 import { getStrapiMedia } from "@/utils/api";
+import { ConfiguracaoItem, getProductConfigurations, getAccessoryGroups } from "@/utils/productUtils";
 
 export interface ColorOption {
   name: string;
@@ -69,6 +70,13 @@ export interface OpcaoMedida {
 interface ProductContextType {
   product: any;
 
+  // 0. Configurações / Modelos principais do produto
+  hasConfiguracoes: boolean;
+  configuracoes: ConfiguracaoItem[];
+  selectedConfiguracao: ConfiguracaoItem | null;
+  setSelectedConfiguracao: (cfg: ConfiguracaoItem | null) => void;
+  selectConfiguracao: (cfg: ConfiguracaoItem) => void;
+
   // 1. Revestimentos em 3 Camadas (Material -> Cores com galeria e preços)
   hasRevestimentos: boolean;
   revestimentos: Revestimento[];
@@ -109,6 +117,7 @@ interface ProductContextType {
   activeGalleryImageUrl: string | null;
   setActiveGalleryImageUrl: (url: string | null) => void;
   selectedPrice: number;
+  isQuoteOnly: boolean;
 }
 
 const ProductContext = createContext<ProductContextType | null>(null);
@@ -120,6 +129,49 @@ export function ProductProvider({
   product: any;
   children: React.ReactNode;
 }) {
+  // Verifica antecipadamente se o produto possui algum preço base ou se é estritamente "Sob consulta"
+  const isProductQuoteOnly = useMemo(() => {
+    // 1. Preço na raiz do produto
+    if (product?.Preco && Number(product.Preco) > 0) return false;
+    if (product?.Preco_promocional && Number(product.Preco_promocional) > 0) return false;
+
+    // 2. Preço em variações tradicionais
+    if (product?.Variacoes && Array.isArray(product.Variacoes)) {
+      for (const v of product.Variacoes) {
+        if (v.Preco && Number(v.Preco) > 0) return false;
+        if (v.Preco_promocional && Number(v.Preco_promocional) > 0) return false;
+        if (v.Preco_diferenciado && Number(v.Preco_diferenciado) > 0) return false;
+      }
+    }
+
+    // 3. Preço em revestimentos / cores
+    if (product?.Revestimentos && Array.isArray(product.Revestimentos)) {
+      for (const r of product.Revestimentos) {
+        if (r.Cores && Array.isArray(r.Cores)) {
+          for (const c of r.Cores) {
+            if (c.Preco && Number(c.Preco) > 0) return false;
+            if (c.Preco_promocional && Number(c.Preco_promocional) > 0) return false;
+            if (c.Preco_diferenciado && Number(c.Preco_diferenciado) > 0) return false;
+          }
+        }
+      }
+    }
+
+    // 4. Preço em opções de grupos
+    if (product?.Grupos_variacao && Array.isArray(product.Grupos_variacao)) {
+      for (const g of product.Grupos_variacao) {
+        if (g.Opcoes && Array.isArray(g.Opcoes)) {
+          for (const o of g.Opcoes) {
+            if (o.Preco && Number(o.Preco) > 0) return false;
+            if (o.Preco_promocional && Number(o.Preco_promocional) > 0) return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }, [product]);
+
   // -------------------------------------------------------------------------
   // 1. REVESTIMENTOS EM 3 CAMADAS (Material/Tecido -> Cores)
   // -------------------------------------------------------------------------
@@ -132,7 +184,7 @@ export function ProductProvider({
   const [selectedRevestimento, setSelectedRevestimento] = useState<Revestimento | null>(null);
   const [selectedCorRevestimento, setSelectedCorRevestimento] = useState<CorRevestimento | null>(null);
 
-  // Inicializa o primeiro revestimento e sua primeira cor ao carregar o produto
+  // Inicializa o primeiro revestimento e sua primeira cor
   useEffect(() => {
     if (revestimentos.length > 0) {
       const firstRev = revestimentos[0];
@@ -154,11 +206,49 @@ export function ProductProvider({
   }, []);
 
   // -------------------------------------------------------------------------
-  // 2. GRUPOS MODULARES DE VARIAÇÃO (ESTILO CAVALETTI: Encosto, Base, etc.)
+  // 1.5. CONFIGURAÇÕES / MODELOS PRINCIPAIS DA LINHA
+  // -------------------------------------------------------------------------
+  const configuracoes: ConfiguracaoItem[] = useMemo(
+    () => getProductConfigurations(product),
+    [product]
+  );
+  const hasConfiguracoes = configuracoes.length > 0;
+  const [selectedConfiguracao, setSelectedConfiguracao] = useState<ConfiguracaoItem | null>(null);
+
+  // Inicializa a configuração (verifica parâmetro ?config= na URL ou primeira opção)
+  useEffect(() => {
+    if (configuracoes.length === 0) {
+      setSelectedConfiguracao(null);
+      return;
+    }
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const configParam = params.get("config");
+      if (configParam) {
+        const decoded = decodeURIComponent(configParam).toLowerCase().trim();
+        const matched = configuracoes.find((c) => {
+          const cName = c.Nome.toLowerCase().trim();
+          return cName === decoded || cName.includes(decoded) || decoded.includes(cName);
+        });
+        if (matched) {
+          setSelectedConfiguracao(matched);
+          return;
+        }
+      }
+    }
+    setSelectedConfiguracao(configuracoes[0]);
+  }, [configuracoes]);
+
+  const selectConfiguracao = useCallback((cfg: ConfiguracaoItem) => {
+    setSelectedConfiguracao(cfg);
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // 2. GRUPOS MODULARES DE ACESSÓRIOS (Bases, Braços, Apoio de Cabeça, etc.)
   // -------------------------------------------------------------------------
   const variationGroups: VariationGroup[] = useMemo(
-    () => product?.Grupos_variacao || [],
-    [product?.Grupos_variacao]
+    () => getAccessoryGroups(product),
+    [product]
   );
   const hasVariationGroups = variationGroups.length > 0;
 
@@ -186,13 +276,14 @@ export function ProductProvider({
     }));
   }, []);
 
-  // Foto representativa dos grupos (caso a opção selecionada tenha Foto_destaque ou Foto)
+  // Foto representativa dos grupos (caso a opção selecionada tenha Galeria, Foto_destaque ou Foto)
+  // Foto da opção ativa de grupos (apenas da Galeria)
   const activeGroupPhotoUrl = useMemo(() => {
     if (!hasVariationGroups) return null;
     const opts = Object.values(selectedGroupOptions);
     for (const opt of opts) {
-      if (opt.Foto?.url) {
-        return getStrapiMedia(opt.Foto.url);
+      if (opt.Galeria && opt.Galeria.length > 0 && opt.Galeria[0]?.url) {
+        return getStrapiMedia(opt.Galeria[0].url);
       }
     }
     return null;
@@ -298,67 +389,6 @@ export function ProductProvider({
   // -------------------------------------------------------------------------
   // 4. CONSOLIDAÇÃO DE DADOS (NOME, FOTOS E PREÇO)
   // -------------------------------------------------------------------------
-  // Nome legível da variação ativa (combina Revestimento/Cor + Grupos modulares + Medidas)
-  const variationDisplayName = useMemo(() => {
-    const parts: string[] = [];
-
-    if (hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
-      parts.push(`Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`);
-    }
-
-    if (availableColors.length > 0 && selectedColor) {
-      parts.push(`Cor: ${selectedColor}`);
-    } else if (!hasRevestimentos && (selectedVariation?.Nome_cor || selectedColor)) {
-      const color = selectedVariation?.Nome_cor?.trim() || selectedColor;
-      if (color) {
-        parts.push(`Cor: ${color}`);
-      }
-    }
-
-    if (hasVariationGroups) {
-      Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
-        parts.push(`${groupTitle}: ${opt.Nome}`);
-      });
-    }
-
-    if (hasMedidas && selectedMedida) {
-      parts.push(`Medida: ${selectedMedida.Titulo}`);
-    }
-
-    return parts.length > 0 ? parts.join(" • ") : "Padrão";
-  }, [hasRevestimentos, selectedRevestimento, selectedCorRevestimento, availableColors, selectedVariation, selectedColor, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
-
-  // Foto representativa da variação selecionada (para uso no Compre Junto, carrinho, etc.)
-  const activeVariationPhotoUrl = useMemo(() => {
-    // 0. Revestimento ativo com foto de galeria ou miniatura
-    if (hasRevestimentos && selectedCorRevestimento) {
-      if (selectedCorRevestimento.Galeria && selectedCorRevestimento.Galeria.length > 0) {
-        return getStrapiMedia(selectedCorRevestimento.Galeria[0].url);
-      }
-      if (selectedCorRevestimento.Miniatura?.url) {
-        return getStrapiMedia(selectedCorRevestimento.Miniatura.url);
-      }
-    }
-
-    // 1. Galeria/miniatura da cor tradicional selecionada da cadeira
-    if (selectedVariation?.Galeria && selectedVariation.Galeria.length > 0) {
-      return getStrapiMedia(selectedVariation.Galeria[0].url);
-    }
-    if (selectedVariation?.Miniatura?.url) {
-      return getStrapiMedia(selectedVariation.Miniatura.url);
-    }
-
-    // 2. Foto de destaque ou foto do grupo selecionado
-    if (activeGroupPhotoUrl) return activeGroupPhotoUrl;
-
-    // 3. Galeria global do produto (fora de variações)
-    if (product?.Galeria && Array.isArray(product.Galeria) && product.Galeria.length > 0 && product.Galeria[0]?.url) {
-      return getStrapiMedia(product.Galeria[0].url);
-    }
-
-    return null;
-  }, [hasRevestimentos, selectedCorRevestimento, selectedVariation, activeGroupPhotoUrl, product]);
-
   // Preço da variação selecionada (combina preço de revestimento/cor + adicionais dos grupos)
   const selectedPrice = useMemo(() => {
     let base = 0;
@@ -375,6 +405,18 @@ export function ProductProvider({
       }
       if (selectedCorRevestimento.Preco_adicional && Number(selectedCorRevestimento.Preco_adicional) > 0) {
         additionalFromRevestimento = Number(selectedCorRevestimento.Preco_adicional);
+      }
+    }
+
+    // 0.1 Configuração / modelo selecionado
+    if (hasConfiguracoes && selectedConfiguracao) {
+      if (selectedConfiguracao.Preco_promocional && Number(selectedConfiguracao.Preco_promocional) > 0) {
+        base = Number(selectedConfiguracao.Preco_promocional);
+      } else if (selectedConfiguracao.Preco && Number(selectedConfiguracao.Preco) > 0) {
+        base = Number(selectedConfiguracao.Preco);
+      }
+      if (selectedConfiguracao.Preco_adicional && Number(selectedConfiguracao.Preco_adicional) > 0) {
+        additionalFromRevestimento += Number(selectedConfiguracao.Preco_adicional);
       }
     }
 
@@ -430,13 +472,94 @@ export function ProductProvider({
 
     const totalAdditional = additionalFromRevestimento + additionalFromGroups + additionalFromMedida;
 
-    return base > 0 ? base + totalAdditional : (totalAdditional > 0 ? totalAdditional : 0);
-  }, [hasRevestimentos, selectedCorRevestimento, hasMedidas, selectedMedida, selectedVariation, product, hasVariationGroups, selectedGroupOptions]);
+    return base > 0 ? base + totalAdditional : 0;
+  }, [hasRevestimentos, selectedCorRevestimento, hasConfiguracoes, selectedConfiguracao, hasMedidas, selectedMedida, selectedVariation, product, hasVariationGroups, selectedGroupOptions]);
+
+  const isQuoteOnly = selectedPrice <= 0;
+
+  // Nome legível da variação ativa (combina Configuração + Revestimento/Cor + Grupos modulares + Medidas)
+  const variationDisplayName = useMemo(() => {
+    const parts: string[] = [];
+
+    if (hasConfiguracoes && selectedConfiguracao) {
+      parts.push(`Configuração: ${selectedConfiguracao.Nome}`);
+    }
+
+    if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
+      parts.push(`Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`);
+    }
+
+    if (availableColors.length > 0 && selectedColor) {
+      parts.push(`Cor: ${selectedColor}`);
+    } else if (!hasRevestimentos && (selectedVariation?.Nome_cor || selectedColor)) {
+      const color = selectedVariation?.Nome_cor?.trim() || selectedColor;
+      if (color) {
+        parts.push(`Cor: ${color}`);
+      }
+    }
+
+    if (!isQuoteOnly && hasVariationGroups) {
+      Object.entries(selectedGroupOptions).forEach(([groupTitle, opt]) => {
+        parts.push(`${groupTitle}: ${opt.Nome}`);
+      });
+    }
+
+    if (hasMedidas && selectedMedida) {
+      parts.push(`Medida: ${selectedMedida.Titulo}`);
+    }
+
+    return parts.length > 0 ? parts.join(" • ") : "Padrão";
+  }, [hasConfiguracoes, selectedConfiguracao, isQuoteOnly, hasRevestimentos, selectedRevestimento, selectedCorRevestimento, availableColors, selectedVariation, selectedColor, hasVariationGroups, selectedGroupOptions, hasMedidas, selectedMedida]);
+
+  // Foto representativa da variação selecionada (para uso no Compre Junto, carrinho, etc.)
+  const activeVariationPhotoUrl = useMemo(() => {
+    // 0. Foto da Configuração selecionada (apenas Galeria)
+    if (hasConfiguracoes && selectedConfiguracao) {
+      if (selectedConfiguracao.Galeria && selectedConfiguracao.Galeria.length > 0 && selectedConfiguracao.Galeria[0]?.url) {
+        return getStrapiMedia(selectedConfiguracao.Galeria[0].url);
+      }
+    }
+
+    // 0.5. Revestimento ativo com foto de galeria ou miniatura
+    if (hasRevestimentos && selectedCorRevestimento) {
+      if (selectedCorRevestimento.Galeria && selectedCorRevestimento.Galeria.length > 0) {
+        return getStrapiMedia(selectedCorRevestimento.Galeria[0].url);
+      }
+      if (selectedCorRevestimento.Miniatura?.url) {
+        return getStrapiMedia(selectedCorRevestimento.Miniatura.url);
+      }
+    }
+
+    // 1. Galeria/miniatura da cor tradicional selecionada da cadeira
+    if (selectedVariation?.Galeria && selectedVariation.Galeria.length > 0) {
+      return getStrapiMedia(selectedVariation.Galeria[0].url);
+    }
+    if (selectedVariation?.Miniatura?.url) {
+      return getStrapiMedia(selectedVariation.Miniatura.url);
+    }
+
+    // 2. Foto de destaque ou foto do grupo selecionado
+    if (activeGroupPhotoUrl) return activeGroupPhotoUrl;
+
+    // 3. Galeria global do produto (fora de variações)
+    if (product?.Galeria && Array.isArray(product.Galeria) && product.Galeria.length > 0 && product.Galeria[0]?.url) {
+      return getStrapiMedia(product.Galeria[0].url);
+    }
+
+    return null;
+  }, [hasConfiguracoes, selectedConfiguracao, hasRevestimentos, selectedCorRevestimento, selectedVariation, activeGroupPhotoUrl, product]);
 
   return (
     <ProductContext.Provider
       value={{
         product,
+        // Configurações / Modelos principais
+        hasConfiguracoes,
+        configuracoes,
+        selectedConfiguracao,
+        setSelectedConfiguracao,
+        selectConfiguracao,
+
         // Revestimentos em 3 camadas
         hasRevestimentos,
         revestimentos,
@@ -477,6 +600,7 @@ export function ProductProvider({
         activeGalleryImageUrl,
         setActiveGalleryImageUrl,
         selectedPrice,
+        isQuoteOnly,
       }}
     >
       {children}

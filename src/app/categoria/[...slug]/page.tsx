@@ -1,8 +1,9 @@
 import React from "react";
 import { notFound } from "next/navigation";
-import { getStrapiURL } from "@/utils/api";
+import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import ProductListing from "@/components/common/ProductListing";
 import { ProductCardItem } from "@/components/common/ProductCard";
+import { expandProductsForListing } from "@/utils/productUtils";
 
 interface CategoryPageProps {
   params: Promise<{
@@ -19,7 +20,7 @@ async function getCategoryData(slug: string) {
       )}&populate[Banner_desktop]=true&populate[Banner_mobile]=true&populate[categoria_pai][populate][categoria_pai]=true&populate[subcategorias]=true`
     );
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return null;
 
     const json = await res.json();
@@ -53,14 +54,15 @@ async function getCategoryProducts(
     }
 
     const url = getStrapiURL(
-      `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
 
     const json = await res.json();
-    return json.data || [];
+    const rawItems = json.data || [];
+    return expandProductsForListing(rawItems);
   } catch (error) {
     console.error("Erro ao buscar produtos da categoria:", error);
     return [];

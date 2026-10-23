@@ -6,14 +6,15 @@ import FeaturedProduct from "@/components/home/FeaturedProduct";
 import BestSellers from "@/components/home/BestSellers";
 import Catalog from "@/components/home/Catalog";
 import ProjectsCall, { ProjetoItem } from "@/components/home/ProjectsCall";
-import { getStrapiURL } from "@/utils/api";
+import { getStrapiURL, fetchStrapi } from "@/utils/api";
+import { expandProductsForListing } from "@/utils/productUtils";
 
 async function getHomeData() {
   try {
     const url = getStrapiURL(
       "/api/pagina-home?populate[Banner][populate]=*&populate[Categoria][populate][Categoria][populate]=*&populate[Videos_curtos][populate][Videos][populate]=*&populate[Feedbacks][populate]=*&populate[Projetos][populate][projetos][populate]=*&populate[Produto_destaque][populate][Caracteristicas][populate]=*&populate[Produto_destaque][populate][ImagemPrincipal]=true&populate[Mais_vendidos][populate][produtos][populate][Variacoes][populate]=*&populate[Mais_vendidos][populate][produtos][populate][marca]=true&populate[Mais_vendidos][populate][produtos][populate][garantias]=true&populate[Mais_vendidos][populate][produtos][populate][Foto_mais_vendidos]=true&populate[Catalogo][populate][categorias][populate][Logo_marca]=true"
     );
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     const json = await res.json();
     return json.data;
   } catch (error) {
@@ -28,7 +29,7 @@ async function getBestSellers() {
     const url = getStrapiURL(
       "/api/produtos?filters[Mais_vendido][$eq]=true&filters[Ativo][$ne]=false&populate[Variacoes][populate]=*&populate[marca]=true&populate[Galeria]=true&populate[garantias]=true&populate[Foto_mais_vendidos]=true"
     );
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
     const json = await res.json();
     return json.data || [];
@@ -38,16 +39,16 @@ async function getBestSellers() {
   }
 }
 
-// Buscar produtos ativos para o catálogo (com variações para o hover da segunda foto)
+// Buscar produtos ativos para o catálogo (com variações para o hover da segunda foto e configurações expandidas)
 async function getCatalogProducts() {
   try {
     const url = getStrapiURL(
-      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true"
+      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true"
     );
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
     const json = await res.json();
-    return json.data || [];
+    return expandProductsForListing(json.data || []);
   } catch (error) {
     console.error("Erro ao buscar produtos do catálogo:", error);
     return [];
@@ -61,7 +62,7 @@ async function getFeaturedProjects(): Promise<ProjetoItem[]> {
     const url = getStrapiURL(
       "/api/projetos?filters[Destaque_home][$eq]=true&populate[0]=Logo_cliente&populate[1]=Imagem_capa&populate[2]=categorias&sort[0]=createdAt:desc&pagination[pageSize]=2"
     );
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (res.ok) {
       const json = await res.json();
       if (json?.data && Array.isArray(json.data) && json.data.length > 0) {

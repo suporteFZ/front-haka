@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getStrapiURL } from "@/utils/api";
+import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import ProductHero from "@/components/product/ProductHero";
 import ProductBanner from "@/components/product/ProductBanner";
 import ProductTechSpecs from "@/components/product/ProductTechSpecs";
@@ -31,6 +31,7 @@ async function getRelatedProducts(
       "filters[categoria][documentId][$eq]": categoryDocumentId,
       "filters[Ativo][$ne]": "false",
       "populate[Variacoes][populate]": "*",
+      "populate[Configuracoes][populate]": "*",
       "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[marca]": "true",
       "populate[categoria]": "true",
@@ -40,7 +41,7 @@ async function getRelatedProducts(
     });
 
     const url = getStrapiURL(`/api/produtos?${qs.toString()}`);
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
 
     const json = await res.json();
@@ -66,6 +67,7 @@ async function getProductData(slug: string) {
       "filters[slug][$eq]": slug,
       "filters[Ativo][$ne]": "false",
       "populate[Variacoes][populate]": "*",
+      "populate[Configuracoes][populate]": "*",
       "populate[Opcoes_medida]": "true",
       "populate[Revestimentos][populate][Cores][populate]": "*",
       "populate[Revestimentos][populate][Foto_amostra]": "true",
@@ -92,7 +94,7 @@ async function getProductData(slug: string) {
     });
 
     const url = getStrapiURL(`/api/produtos?${qs.toString()}`);
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return null;
 
     const json = await res.json();
@@ -127,7 +129,7 @@ async function getProductData(slug: string) {
         "populate[produtos_compre_junto][populate][Imagem_destaque]": "true",
         "populate[produtos_compre_junto][populate][Foto_mais_vendidos]": "true",
       });
-      const resFallback = await fetch(getStrapiURL(`/api/produtos?${qsFallback.toString()}`), { cache: "no-store" });
+      const resFallback = await fetchStrapi(getStrapiURL(`/api/produtos?${qsFallback.toString()}`), { cache: "no-store" });
       if (resFallback.ok) {
         const jsonFallback = await resFallback.json();
         if (jsonFallback.data && jsonFallback.data.length > 0) {

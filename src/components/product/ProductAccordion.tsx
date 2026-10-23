@@ -13,23 +13,20 @@ export default function ProductAccordion({ product }: ProductAccordionProps) {
 
   if (!product) return null;
 
-  // Imagem em destaque fixa da cadeira cadastrada no Strapi
-  const featuredImgUrl =
-    getStrapiMedia(product.Foto_fixa_acordeao?.url) ||
-    getStrapiMedia(product.Galeria?.[0]?.url);
-
   // Itens cadastrados no Strapi (apenas itens válidos com título e texto)
   const items = (product.Itens_acordeao || []).filter(
     (item: any) => item && item.Titulo?.trim() && item.Texto?.trim()
   );
 
-  const hasImg = Boolean(featuredImgUrl);
-  const hasItems = items.length > 0;
-
-  // Se não houver itens nem imagem no Strapi, não renderiza a seção
-  if (!hasImg && !hasItems) {
+  // Se não houver itens de acordeão cadastrados, não renderiza a seção
+  if (items.length === 0) {
     return null;
   }
+
+  // Imagem em destaque fixa da cadeira (apenas se Foto_fixa_acordeao foi explicitamente cadastrada, sem fallback para a galeria)
+  const featuredImgUrl = getStrapiMedia(product.Foto_fixa_acordeao?.url);
+  const hasImg = Boolean(featuredImgUrl);
+  const hasItems = true;
 
   const toggleItem = (idx: number) => {
     setOpenIndex(openIndex === idx ? null : idx);
