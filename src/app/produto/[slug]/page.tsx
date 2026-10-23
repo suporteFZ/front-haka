@@ -87,10 +87,13 @@ async function getProductData(slug: string) {
       "populate[Itens_acordeao]": "true",
       "populate[Video_arquivo]": "true",
       "populate[Thumbnail_video]": "true",
+      "populate[produtos_compre_junto][populate][Configuracoes][populate]": "*",
+      "populate[produtos_compre_junto][populate][Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[produtos_compre_junto][populate][Variacoes][populate]": "*",
       "populate[produtos_compre_junto][populate][marca]": "true",
       "populate[produtos_compre_junto][populate][Imagem_destaque]": "true",
       "populate[produtos_compre_junto][populate][Foto_mais_vendidos]": "true",
+      "populate[produtos_compre_junto][populate][Galeria]": "true",
     });
 
     const url = getStrapiURL(`/api/produtos?${qs.toString()}`);
@@ -124,10 +127,13 @@ async function getProductData(slug: string) {
         "populate[Itens_acordeao]": "true",
         "populate[Video_arquivo]": "true",
         "populate[Thumbnail_video]": "true",
+        "populate[produtos_compre_junto][populate][Configuracoes][populate]": "*",
+        "populate[produtos_compre_junto][populate][Grupos_variacao][populate][Opcoes][populate]": "*",
         "populate[produtos_compre_junto][populate][Variacoes][populate]": "*",
         "populate[produtos_compre_junto][populate][marca]": "true",
         "populate[produtos_compre_junto][populate][Imagem_destaque]": "true",
         "populate[produtos_compre_junto][populate][Foto_mais_vendidos]": "true",
+        "populate[produtos_compre_junto][populate][Galeria]": "true",
       });
       const resFallback = await fetchStrapi(getStrapiURL(`/api/produtos?${qsFallback.toString()}`), { cache: "no-store" });
       if (resFallback.ok) {
