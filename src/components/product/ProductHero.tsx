@@ -1194,18 +1194,21 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors"
                 aria-expanded={isRevestimentoSectionOpen}
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
+                <div className="flex items-baseline gap-2 min-w-0 pr-3">
+                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black shrink-0">
                     Revestimento e cor
                   </span>
                   {!isQuoteOnly && selectedRevestimento && selectedCorRevestimento && (
-                    <span className="text-[13px] font-sans text-stone-500 font-normal">
+                    <span
+                      className="text-[13px] font-sans text-stone-500 font-normal truncate"
+                      title={`${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`}
+                    >
                       — {selectedRevestimento.Nome} ({selectedCorRevestimento.Nome_cor})
                     </span>
                   )}
                 </div>
 
-                <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1">
+                <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1 shrink-0 ml-auto">
                   <svg
                     width="16"
                     height="16"
@@ -1253,7 +1256,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                             className="w-full px-3.5 py-3 flex items-center justify-between text-left group cursor-pointer transition-colors"
                             aria-expanded={isMaterialOpen}
                           >
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
                               {rev.Foto_amostra?.url && getStrapiMedia(rev.Foto_amostra.url) ? (
                                 <div className="relative w-6 h-6 rounded-full overflow-hidden border border-black/10 shrink-0">
                                   <Image
@@ -1265,34 +1268,37 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 </div>
                               ) : null}
 
-                              <div className="flex items-baseline gap-2">
-                                <span className={`text-[13px] md:text-[14px] font-sans font-medium ${isSelectedRev ? "text-stone-900" : "text-stone-800 group-hover:text-black"}`}>
+                              <div className="flex items-baseline gap-2 min-w-0">
+                                <span
+                                  className={`text-[13px] md:text-[14px] font-sans font-medium truncate ${isSelectedRev ? "text-stone-900" : "text-stone-800 group-hover:text-black"}`}
+                                  title={rev.Nome}
+                                >
                                   {rev.Nome}
                                 </span>
                                 {rev.Cores && rev.Cores.length > 0 && (
-                                  <span className="text-[11px] font-sans text-stone-400">
+                                  <span className="text-[11px] font-sans text-stone-400 shrink-0 whitespace-nowrap">
                                     ({rev.Cores.length} {rev.Cores.length === 1 ? "cor" : "cores"})
                                   </span>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 shrink-0 ml-auto">
                               {activeCorInThisRev && (
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700 shrink-0 whitespace-nowrap">
                                   {activeCorInThisRev.Cor_hex && (
                                     <span
-                                      className="w-2.5 h-2.5 rounded-full border border-black/10"
+                                      className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
                                       style={{ backgroundColor: normalizeHex(activeCorInThisRev.Cor_hex) }}
                                     />
                                   )}
-                                  <span className="text-[11px] font-sans font-medium">
+                                  <span className="text-[11px] font-sans font-medium truncate max-w-[120px]">
                                     {activeCorInThisRev.Nome_cor}
                                   </span>
                                 </div>
                               )}
 
-                              <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-0.5">
+                              <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-0.5 shrink-0">
                                 <svg
                                   width="15"
                                   height="15"
@@ -1312,7 +1318,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
                           {/* CAMADA 3: LISTAGEM DE CORES DO REVESTIMENTO (SANFONA ABERTA) */}
                           {isMaterialOpen && rev.Cores && rev.Cores.length > 0 && (
-                            <div className="px-3.5 pb-3.5 pt-1 border-t border-stone-100 flex flex-wrap gap-2 sm:gap-2.5 items-start">
+                            <div className="px-3.5 pb-3.5 pt-1 border-t border-stone-100 grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5 items-stretch">
                               {rev.Cores.map((cor) => {
                                 const isCorSelected = !isQuoteOnly && isSelectedRev && selectedCorRevestimento?.Nome_cor === cor.Nome_cor;
                                 const dotColor = normalizeHex(cor.Cor_hex);
@@ -1321,7 +1327,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 return (
                                   <div
                                     key={cor.Nome_cor}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all ${isCorSelected
+                                    className={`flex items-center justify-between gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all ${isCorSelected
                                         ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs cursor-pointer"
                                         : isQuoteOnly
                                           ? "border-stone-200 bg-white cursor-default"
@@ -1349,36 +1355,38 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                       }
                                     }}
                                   >
-                                    {thumbImg ? (
-                                      <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
-                                        <Image
-                                          src={thumbImg}
-                                          alt={cor.Nome_cor}
-                                          fill
-                                          className="object-cover"
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {thumbImg ? (
+                                        <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
+                                          <Image
+                                            src={thumbImg}
+                                            alt={cor.Nome_cor}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        </div>
+                                      ) : (
+                                        <span
+                                          className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                                          style={{ backgroundColor: dotColor }}
+                                          aria-hidden="true"
                                         />
-                                      </div>
-                                    ) : (
-                                      <span
-                                        className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
-                                        style={{ backgroundColor: dotColor }}
-                                        aria-hidden="true"
-                                      />
-                                    )}
+                                      )}
 
-                                    <div className="flex flex-col">
-                                      <span className={`text-[12px] sm:text-[13px] font-sans ${isCorSelected ? "font-semibold text-stone-900" : "font-normal text-stone-700"}`}>
-                                        {cor.Nome_cor}
-                                      </span>
-                                      {!isQuoteOnly && cor.Preco_adicional && Number(cor.Preco_adicional) > 0 ? (
-                                        <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5">
-                                          +{formatBRL(Number(cor.Preco_adicional))}
+                                      <div className="flex flex-col min-w-0 pr-1">
+                                        <span className={`text-[12px] sm:text-[13px] font-sans truncate ${isCorSelected ? "font-semibold text-stone-900" : "font-normal text-stone-700"}`} title={cor.Nome_cor}>
+                                          {cor.Nome_cor}
                                         </span>
-                                      ) : !isQuoteOnly ? (
-                                        <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5">
-                                          Sem acréscimo
-                                        </span>
-                                      ) : null}
+                                        {!isQuoteOnly && cor.Preco_adicional && Number(cor.Preco_adicional) > 0 ? (
+                                          <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5 whitespace-nowrap">
+                                            +{formatBRL(Number(cor.Preco_adicional))}
+                                          </span>
+                                        ) : !isQuoteOnly ? (
+                                          <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5 whitespace-nowrap">
+                                            Sem acréscimo
+                                          </span>
+                                        ) : null}
+                                      </div>
                                     </div>
 
                                     {isCorSelected && (
@@ -1410,27 +1418,30 @@ export default function ProductHero({ product }: ProductHeroProps) {
               <button
                 type="button"
                 onClick={() => setIsConfiguracaoSectionOpen((prev) => !prev)}
-                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors"
+                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors min-h-[38px]"
                 aria-expanded={isConfiguracaoSectionOpen}
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
+                <div className="flex items-baseline gap-2 min-w-0 pr-3">
+                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black shrink-0">
                     Modelo
                   </span>
                   {selectedConfiguracao && (
-                    <span className="text-[13px] font-sans text-stone-500 font-normal">
+                    <span
+                      className="text-[13px] font-sans text-stone-500 font-normal truncate"
+                      title={selectedConfiguracao.Nome}
+                    >
                       — {selectedConfiguracao.Nome}
                     </span>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-center gap-2.5 shrink-0 ml-auto pl-2">
                   {configuracoes.length > 0 && (
-                    <span className="text-[11px] font-sans text-stone-400">
+                    <span className="text-[11px] font-sans text-stone-400 shrink-0 whitespace-nowrap">
                       ({configuracoes.length} {configuracoes.length === 1 ? "opção" : "opções"})
                     </span>
                   )}
-                  <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1">
+                  <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1 shrink-0">
                     <svg
                       width="16"
                       height="16"
@@ -1464,7 +1475,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       return (
                         <div
                           key={cfg.Nome}
-                          className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer ${isSelected
+                          className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer min-h-[58px] ${isSelected
                               ? "border-stone-900 bg-stone-50/40 ring-1 ring-stone-900 shadow-2xs"
                               : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
                             }`}
@@ -1488,9 +1499,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
                             }
                           }}
                         >
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
                             {photoUrl ? (
-                              <div className="relative w-10 h-10 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
+                              <div className="relative w-11 h-11 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
                                 <Image
                                   src={photoUrl}
                                   alt={cfg.Nome}
@@ -1500,9 +1511,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
                               </div>
                             ) : null}
 
-                            <div className="flex flex-col min-w-0">
+                            <div className="flex flex-col min-w-0 pr-2">
                               <span
-                                className={`text-[13px] sm:text-[14px] font-sans ${isSelected
+                                className={`text-[13px] sm:text-[14px] font-sans leading-snug ${isSelected
                                     ? "font-semibold text-stone-900"
                                     : "font-normal text-stone-700"
                                   }`}
@@ -1510,7 +1521,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 {cfg.Nome}
                               </span>
                               {!isQuoteOnly && cfg.Preco_adicional && Number(cfg.Preco_adicional) > 0 ? (
-                                <span className="text-[11px] font-sans text-[#006642] font-medium leading-none mt-1">
+                                <span className="text-[11px] font-sans text-[#006642] font-medium leading-none mt-1 whitespace-nowrap">
                                   +{formatBRL(Number(cfg.Preco_adicional))}
                                 </span>
                               ) : null}
@@ -1555,21 +1566,24 @@ export default function ProductHero({ product }: ProductHeroProps) {
               <button
                 type="button"
                 onClick={() => setIsComponentsSectionOpen((prev) => !prev)}
-                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors"
+                className="w-full flex items-center justify-between border-b border-[#E5E7EB] pb-2 text-left group cursor-pointer transition-colors min-h-[38px]"
                 aria-expanded={isComponentsSectionOpen}
               >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black">
+                <div className="flex items-baseline gap-2 min-w-0 pr-3">
+                  <span className="text-[15px] md:text-[16px] font-heading font-medium text-stone-900 group-hover:text-black shrink-0">
                     Componentes e Acessórios
                   </span>
                   {!isQuoteOnly && selectedComponentsSummary && (
-                    <span className="text-[13px] font-sans text-stone-500 font-normal">
+                    <span
+                      className="text-[13px] font-sans text-stone-500 font-normal truncate"
+                      title={selectedComponentsSummary}
+                    >
                       — {selectedComponentsSummary}
                     </span>
                   )}
                 </div>
 
-                <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1">
+                <div className="text-stone-400 group-hover:text-stone-700 transition-colors p-1 shrink-0 ml-auto">
                   <svg
                     width="16"
                     height="16"
@@ -1615,20 +1629,23 @@ export default function ProductHero({ product }: ProductHeroProps) {
                             className="w-full px-3.5 py-3 flex items-center justify-between text-left group cursor-pointer transition-colors"
                             aria-expanded={isGroupOpen}
                           >
-                            <div className="flex items-baseline gap-2">
-                              <span className={`text-[13px] md:text-[14px] font-sans font-medium ${currentSelected ? "text-stone-900" : "text-stone-800 group-hover:text-black"}`}>
+                            <div className="flex items-baseline gap-2 min-w-0 pr-2">
+                              <span
+                                className={`text-[13px] md:text-[14px] font-sans font-medium truncate ${currentSelected ? "text-stone-900" : "text-stone-800 group-hover:text-black"}`}
+                                title={group.Titulo}
+                              >
                                 {group.Titulo}
                               </span>
                               {group.Opcoes && group.Opcoes.length > 0 && (
-                                <span className="text-[11px] font-sans text-stone-400">
+                                <span className="text-[11px] font-sans text-stone-400 shrink-0 whitespace-nowrap">
                                   ({group.Opcoes.length} {group.Opcoes.length === 1 ? "opção" : "opções"})
                                 </span>
                               )}
                             </div>
 
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 shrink-0 ml-auto">
                               {currentSelected && (
-                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700">
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-stone-700 shrink-0 whitespace-nowrap">
                                   {currentSelected.Galeria?.[0]?.url && getStrapiMedia(currentSelected.Galeria[0].url) ? (
                                     <div className="relative w-3.5 h-3.5 rounded-full overflow-hidden border border-black/10 shrink-0">
                                       <Image
@@ -1640,17 +1657,17 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                     </div>
                                   ) : currentSelected.Cor_hex ? (
                                     <span
-                                      className="w-2.5 h-2.5 rounded-full border border-black/10"
+                                      className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
                                       style={{ backgroundColor: normalizeHex(currentSelected.Cor_hex) }}
                                     />
                                   ) : null}
-                                  <span className="text-[11px] font-sans font-medium">
+                                  <span className="text-[11px] font-sans font-medium truncate max-w-[120px]">
                                     {currentSelected.Nome}
                                   </span>
                                 </div>
                               )}
 
-                              <div className="text-stone-400 group-hover:text-stone-700 transition-colors">
+                              <div className="text-stone-400 group-hover:text-stone-700 transition-colors shrink-0">
                                 <svg
                                   width="14"
                                   height="14"
@@ -1670,7 +1687,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
                           {/* Conteúdo: Botões em Pílula */}
                           {isGroupOpen && (
-                            <div className="p-3 pt-1 flex flex-wrap gap-2 sm:gap-2.5 items-start">
+                            <div className="p-3 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 items-stretch">
                               {group.Opcoes?.map((opt) => {
                                 const isSelected = !isQuoteOnly && selectedGroupOptions[group.Titulo]?.Nome === opt.Nome;
                                 const photoUrl = opt.Galeria?.[0]?.url ? getStrapiMedia(opt.Galeria[0].url) : null;
@@ -1679,7 +1696,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 return (
                                   <div
                                     key={opt.Nome}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-[6px] border text-left min-h-[46px] transition-all ${isSelected
+                                    className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-[6px] border text-left min-h-[48px] transition-all ${isSelected
                                         ? "border-stone-900 bg-white ring-1 ring-stone-900 shadow-2xs cursor-pointer"
                                         : isQuoteOnly
                                           ? "border-stone-200 bg-white cursor-default"
@@ -1707,41 +1724,43 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                       }
                                     }}
                                   >
-                                    {photoUrl ? (
-                                      <div className="relative w-5 h-5 rounded-full overflow-hidden border border-black/10 shrink-0">
-                                        <Image
-                                          src={photoUrl}
-                                          alt={opt.Nome}
-                                          fill
-                                          className="object-cover"
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      {photoUrl ? (
+                                        <div className="relative w-6 h-6 rounded-full overflow-hidden border border-black/10 shrink-0">
+                                          <Image
+                                            src={photoUrl}
+                                            alt={opt.Nome}
+                                            fill
+                                            className="object-cover"
+                                          />
+                                        </div>
+                                      ) : opt.Cor_hex ? (
+                                        <span
+                                          className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
+                                          style={{ backgroundColor: dotColor }}
+                                          aria-hidden="true"
                                         />
-                                      </div>
-                                    ) : opt.Cor_hex ? (
-                                      <span
-                                        className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 shadow-2xs"
-                                        style={{ backgroundColor: dotColor }}
-                                        aria-hidden="true"
-                                      />
-                                    ) : null}
-
-                                    <div className="flex flex-col">
-                                      <span
-                                        className={`text-[12px] sm:text-[13px] font-sans ${isSelected
-                                            ? "font-semibold text-stone-900"
-                                            : "font-normal text-stone-700"
-                                          }`}
-                                      >
-                                        {opt.Nome}
-                                      </span>
-                                      {!isQuoteOnly && opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? (
-                                        <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5">
-                                          +{formatBRL(Number(opt.Preco_adicional))}
-                                        </span>
-                                      ) : !isQuoteOnly ? (
-                                        <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5">
-                                          Sem acréscimo
-                                        </span>
                                       ) : null}
+
+                                      <div className="flex flex-col min-w-0 pr-1">
+                                        <span
+                                          className={`text-[12px] sm:text-[13px] font-sans leading-tight ${isSelected
+                                              ? "font-semibold text-stone-900"
+                                              : "font-normal text-stone-700"
+                                            }`}
+                                        >
+                                          {opt.Nome}
+                                        </span>
+                                        {!isQuoteOnly && opt.Preco_adicional && Number(opt.Preco_adicional) > 0 ? (
+                                          <span className="text-[10px] font-sans text-[#006642] font-medium leading-none mt-0.5 whitespace-nowrap">
+                                            +{formatBRL(Number(opt.Preco_adicional))}
+                                          </span>
+                                        ) : !isQuoteOnly ? (
+                                          <span className="text-[10px] font-sans text-stone-400 font-normal leading-none mt-0.5 whitespace-nowrap">
+                                            Sem acréscimo
+                                          </span>
+                                        ) : null}
+                                      </div>
                                     </div>
 
                                     {isSelected && (

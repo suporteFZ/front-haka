@@ -121,84 +121,97 @@ export default function ProductTechSpecs({ product }: ProductTechSpecsProps) {
   return (
     <section className="w-full mt-10 md:mt-24 px-4 sm:px-6 md:px-0">
       {/* ===================================================================== */}
-      {/* VERSÃO MOBILE: FUNDO CINZA #F7F7F7 COM BALÕES BRANCOS (CONFORME FIGMA)  */}
+      {/* VERSÃO MOBILE: TÍTULO/TEXTO (SE HOUVER) + BALÕES BRANCOS (SE HOUVER)  */}
       {/* ===================================================================== */}
-      <div className="block md:hidden w-full bg-[#F7F7F7] rounded-[16px] sm:rounded-[20px] p-4 sm:p-6">
-        <h2 className="text-[20px] font-heading font-bold text-[#000000] mb-3.5 leading-tight">
-          Especificações Técnicas
-        </h2>
-
-        {/* Seletor de abas em cápsula única com fundo preto deslizante */}
-        {availableTabs.length > 1 && (
-          <div className="mb-4">
-            <div className="relative inline-flex items-center p-1 rounded-full bg-white border border-[#E5E7EB] shadow-2xs select-none">
-              {/* Fundo preto que desliza suavemente entre as opções */}
-              <div
-                className={`absolute top-1 bottom-1 left-0 bg-black rounded-full pointer-events-none shadow-xs ${
-                  mobileIndicator.ready
-                    ? "transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
-                    : ""
-                }`}
-                style={{
-                  transform: `translateX(${mobileIndicator.left}px)`,
-                  width: `${mobileIndicator.width}px`,
-                  opacity: mobileIndicator.ready ? 1 : 0,
-                }}
-              />
-
-              {availableTabs.map((tab, idx) => (
-                <button
-                  key={tab.id}
-                  ref={(el) => {
-                    mobileTabRefs.current[idx] = el;
-                  }}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`relative z-10 px-3.5 py-1.5 rounded-full text-[12px] font-sans transition-colors duration-200 cursor-pointer whitespace-nowrap ${
-                    activeTab === tab.id
-                      ? "font-medium text-white"
-                      : "text-[#69736B] hover:text-black"
-                  }`}
-                >
-                  {tab.label}
-                </button>
+      {hasLeftContent && (
+        <div className="block md:hidden mb-6 flex flex-col">
+          {title && (
+            <h2 className="text-[20px] font-heading font-semibold text-[#000000] leading-tight tracking-tight">
+              {title}
+            </h2>
+          )}
+          {textParagraphs.length > 0 && (
+            <div className="mt-3 flex flex-col gap-3 text-[12px] font-sans text-[#565656] leading-relaxed">
+              {textParagraphs.map((para: string, pIdx: number) => (
+                <p key={pIdx}>{para}</p>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Lista de balões brancos */}
-        <div className="flex flex-col gap-2.5 w-full">
-          {activeItems.map((item: any, idx: number) => (
-            <div
-              key={idx}
-              className="w-full bg-white rounded-[12px] p-3.5 border border-[#EBEBEB]/80 shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col"
-            >
-              <span className="text-[11px] font-sans font-semibold text-[#000000] leading-snug">
-                {item.Chave}
-              </span>
-              <span className="text-[11px] font-sans text-[#69736B] mt-0.5 leading-snug">
-                {item.Valor}
-              </span>
-            </div>
-          ))}
+          )}
         </div>
-      </div>
+      )}
+
+      {hasRightContent && (
+        <div className="block md:hidden w-full bg-[#F7F7F7] rounded-[16px] sm:rounded-[20px] p-4 sm:p-6">
+          <h2 className="text-[20px] font-heading font-bold text-[#000000] mb-3.5 leading-tight">
+            Especificações Técnicas
+          </h2>
+
+          {/* Seletor de abas em cápsula única com fundo preto deslizante */}
+          {availableTabs.length > 1 && (
+            <div className="mb-4">
+              <div className="relative inline-flex items-center p-1 rounded-full bg-white border border-[#E5E7EB] shadow-2xs select-none">
+                {/* Fundo preto que desliza suavemente entre as opções */}
+                <div
+                  className={`absolute top-1 bottom-1 left-0 bg-black rounded-full pointer-events-none shadow-xs ${
+                    mobileIndicator.ready
+                      ? "transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+                      : ""
+                  }`}
+                  style={{
+                    transform: `translateX(${mobileIndicator.left}px)`,
+                    width: `${mobileIndicator.width}px`,
+                    opacity: mobileIndicator.ready ? 1 : 0,
+                  }}
+                />
+
+                {availableTabs.map((tab, idx) => (
+                  <button
+                    key={tab.id}
+                    ref={(el) => {
+                      mobileTabRefs.current[idx] = el;
+                    }}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative z-10 px-3.5 py-1.5 rounded-full text-[12px] font-sans transition-colors duration-200 cursor-pointer whitespace-nowrap ${
+                      activeTab === tab.id
+                        ? "font-medium text-white"
+                        : "text-[#69736B] hover:text-black"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lista de balões brancos */}
+          <div className="flex flex-col gap-2.5 w-full">
+            {activeItems.map((item: any, idx: number) => (
+              <div
+                key={idx}
+                className="w-full bg-white rounded-[12px] p-3.5 border border-[#EBEBEB]/80 shadow-[0_1px_2px_rgba(0,0,0,0.03)] flex flex-col"
+              >
+                <span className="text-[11px] font-sans font-semibold text-[#000000] leading-snug">
+                  {item.Chave}
+                </span>
+                <span className="text-[11px] font-sans text-[#69736B] mt-0.5 leading-snug">
+                  {item.Valor}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================== */}
       {/* VERSÃO DESKTOP: 50% TEXTO + 50% TABELA TABEADA COM SLIDER SUAVE      */}
       {/* ===================================================================== */}
-      <div
-        className={`hidden md:grid ${
-          hasLeftContent && hasRightContent
-            ? "grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start"
-            : "max-w-[1000px] mx-auto"
-        }`}
-      >
+      <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start w-full">
         {/* ===================================================================== */}
         {/* COLUNA ESQUERDA: TÍTULO E TEXTO DESCRITIVO LONGO                     */}
         {/* ===================================================================== */}
-        {hasLeftContent && (
+        {hasLeftContent ? (
           <div className="flex flex-col pr-0 lg:pr-6">
             {title && (
               <h2 className="text-[26px] md:text-[34px] font-heading font-semibold text-[#000000] leading-tight tracking-tight">
@@ -214,6 +227,8 @@ export default function ProductTechSpecs({ product }: ProductTechSpecsProps) {
               </div>
             )}
           </div>
+        ) : (
+          <div aria-hidden="true" />
         )}
 
         {/* ===================================================================== */}
