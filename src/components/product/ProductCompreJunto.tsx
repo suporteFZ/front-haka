@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getStrapiMedia } from "@/utils/api";
@@ -35,12 +35,215 @@ interface ComplementaryItem {
   variation: any;
 }
 
+// Card de Produto Complementar com Dropdown customizado integrado à identidade visual
+function ComplementaryCard({
+  comp,
+  cardWidthClass,
+  cardMinHeightClass,
+  imageHeightClass,
+  onSelectConfig,
+}: {
+  comp: ComplementaryItem;
+  cardWidthClass: string;
+  cardMinHeightClass: string;
+  imageHeightClass: string;
+  onSelectConfig: (productId: number, configKey: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  return (
+    <div
+      className={`${cardWidthClass} relative bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 hover:border-gray-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between ${cardMinHeightClass} shrink-0 group ${
+        isOpen ? "z-40 ring-1 ring-black/5" : "z-10"
+      }`}
+    >
+      {/* Stretched Link cobrindo todo o card (menos os elementos com z-10 / z-20) */}
+      <Link
+        href={comp.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute inset-0 z-0 rounded-[16px] md:rounded-[20px]"
+        aria-label={`Ver detalhes de ${comp.name}`}
+        title={`Ver detalhes de ${comp.name}`}
+      />
+
+      {/* Foto do produto */}
+      <div className={`relative z-1 w-full ${imageHeightClass} flex items-center justify-center p-2 pointer-events-none`}>
+        {comp.imageUrl ? (
+          <Image
+            src={comp.imageUrl}
+            alt={comp.name}
+            fill
+            className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+            sizes="350px"
+          />
+        ) : (
+          <div className="text-gray-300 font-sans text-xs">Sem imagem</div>
+        )}
+      </div>
+
+      {/* Área inferior: Dropdown de Modelo (entre a foto e o nome) + Marca + Nome + Preço */}
+      <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col pointer-events-none">
+        {/* Dropdown de Modelo customizado */}
+        {comp.configurations.length > 1 ? (
+          <div
+            ref={dropdownRef}
+            className="relative z-20 mb-3 pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
+                Modelo
+              </span>
+              <span className="text-[10px] font-sans font-medium px-2 py-0.5 rounded-full bg-stone-100 text-stone-600">
+                {comp.configurations.length} opções
+              </span>
+            </div>
+
+            {/* Botão Gatilho do Dropdown com estilo do site */}
+            <button
+              type="button"
+              onClick={() => setIsOpen(!isOpen)}
+              className={`w-full flex items-center justify-between gap-2 bg-[#F7F7F8] hover:bg-[#F0F0F2] border ${
+                isOpen ? "border-black ring-1 ring-black bg-white" : "border-[#E5E7EB] hover:border-stone-400"
+              } rounded-xl px-3 py-2 text-left transition-all duration-200 cursor-pointer shadow-2xs group/btn`}
+            >
+              <span className="text-[11px] md:text-[12px] font-sans font-medium text-[#000000] truncate">
+                {comp.selectedConfig?.Nome || "Selecione o modelo"}
+              </span>
+              <div
+                className={`shrink-0 text-stone-400 group-hover/btn:text-black transition-transform duration-200 ${
+                  isOpen ? "rotate-180 text-black" : ""
+                }`}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </button>
+
+            {/* Menu Suspenso Flutuante com a Identidade do Site */}
+            {isOpen && (
+              <div
+                className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-[#E5E7EB] rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.16)] p-1.5 z-50 max-h-[220px] overflow-y-auto overscroll-contain animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1 cart-scroll"
+              >
+                {comp.configurations.map((c: any) => {
+                  const isSelected =
+                    String(comp.selectedConfig?.id) === String(c.id) ||
+                    comp.selectedConfig?.Nome === c.Nome;
+                  return (
+                    <button
+                      key={c.id || c.Nome}
+                      type="button"
+                      onClick={() => {
+                        onSelectConfig(comp.product.id, c.id ? String(c.id) : c.Nome);
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left text-[11px] md:text-[12px] font-sans transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-black text-white font-medium shadow-xs"
+                          : "text-stone-700 hover:bg-stone-100 hover:text-black"
+                      }`}
+                    >
+                      <span className="truncate leading-snug">{c.Nome}</span>
+                      {isSelected && (
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="shrink-0 text-white ml-1.5"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : comp.selectedConfig ? (
+          <div className="mb-3">
+            <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B] block mb-1">
+              Modelo
+            </span>
+            <div className="bg-[#F7F7F8] border border-[#E5E7EB] rounded-xl px-3 py-2">
+              <span className="text-[11px] md:text-[12px] font-sans font-medium text-black truncate block" title={comp.selectedConfig.Nome}>
+                {comp.selectedConfig.Nome}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Marca */}
+        <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
+          {comp.brand}
+        </span>
+
+        {/* Nome do Produto com ícone externo */}
+        <div className="flex items-center justify-between gap-1 mt-1">
+          <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] line-clamp-1 group-hover:underline" title={comp.name}>
+            {comp.name}
+          </h3>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-stone-400 group-hover:text-black transition-colors">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </div>
+
+        {/* Preço */}
+        <div className="mt-2 flex flex-col">
+          {comp.isQuoteOnly ? (
+            <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
+              Sob consulta
+            </span>
+          ) : (
+            <>
+              <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
+                {formatBRL(comp.price)}
+              </span>
+              <span className="text-[10px] md:text-[11px] font-sans text-[#69736B] mt-0.5">
+                Até {comp.installments}x de {formatBRL(comp.price / comp.installments)}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductCompreJunto({ product, activeImageUrl }: ProductCompreJuntoProps) {
   const productCtx = useProduct();
   const cart = useCart();
 
   // Estado para armazenar o modelo selecionado de cada produto complementar { [productId]: configIdOrName }
   const [selectedConfigMap, setSelectedConfigMap] = useState<Record<number, string>>({});
+
+  // Estado do dropdown mobile { [productId]: boolean }
+  const [mobileOpenId, setMobileOpenId] = useState<number | null>(null);
 
   if (!product) return null;
 
@@ -295,6 +498,13 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     });
   };
 
+  const handleSelectConfig = (productId: number, configKey: string) => {
+    setSelectedConfigMap((prev) => ({
+      ...prev,
+      [productId]: configKey,
+    }));
+  };
+
   // Ajuste dinâmico de largura dos cards se houver 3 produtos no total (1 principal + 2 complementares)
   const isThreeProducts = complementaryList.length >= 2;
   const cardWidthClass = isThreeProducts
@@ -335,17 +545,25 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
               </div>
 
               <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col">
+                {productCtx?.selectedConfiguracao && (
+                  <div className="mb-3">
+                    <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B] block mb-1">
+                      Modelo
+                    </span>
+                    <div className="bg-[#F7F7F8] border border-[#E5E7EB] rounded-xl px-3 py-2 flex items-center justify-between">
+                      <span className="text-[11px] md:text-[12px] font-sans font-medium text-black truncate" title={productCtx.selectedConfiguracao.Nome}>
+                        {productCtx.selectedConfiguracao.Nome}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
                   {product.marca?.Nome || "Elements"}
                 </span>
                 <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] mt-1 line-clamp-1" title={product.Nome}>
                   {product.Nome}
                 </h3>
-                {productCtx?.selectedConfiguracao && (
-                  <span className="text-[11px] font-sans text-[#69736B] mt-0.5 line-clamp-1" title={productCtx.selectedConfiguracao.Nome}>
-                    Modelo: <strong className="text-black font-medium">{productCtx.selectedConfiguracao.Nome}</strong>
-                  </span>
-                )}
                 <div className="mt-2 flex flex-col">
                   {isMainQuoteOnly ? (
                     <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
@@ -373,112 +591,14 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                   +
                 </span>
 
-                {/* Card Complementar com link em todo o card, exceto no dropdown */}
-                <div
-                  className={`${cardWidthClass} relative bg-white rounded-[16px] md:rounded-[20px] p-4 sm:p-5 md:p-6 shadow-xs border border-gray-100 hover:border-gray-300 hover:shadow-md transition-all duration-300 flex flex-col justify-between ${cardMinHeightClass} shrink-0 group`}
-                >
-                  {/* Link cobrindo todo o card (z-0) */}
-                  <Link
-                    href={comp.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute inset-0 z-0 rounded-[16px] md:rounded-[20px]"
-                    aria-label={`Ver detalhes de ${comp.name}`}
-                    title={`Ver detalhes de ${comp.name}`}
-                  />
-
-                  {/* Foto do produto */}
-                  <div className={`relative z-1 w-full ${imageHeightClass} flex items-center justify-center p-2 pointer-events-none`}>
-                    {comp.imageUrl ? (
-                      <Image
-                        src={comp.imageUrl}
-                        alt={comp.name}
-                        fill
-                        className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-                        sizes="350px"
-                      />
-                    ) : (
-                      <div className="text-gray-300 font-sans text-xs">Sem imagem</div>
-                    )}
-                  </div>
-
-                  {/* Área inferior: Dropdown de Modelo (entre a foto e o nome) + Marca + Nome + Preço */}
-                  <div className="border-t border-gray-100 pt-3 mt-2 flex flex-col pointer-events-none">
-                    {/* Dropdown de Modelo: posicionado entre a foto e o nome */}
-                    {comp.configurations.length > 1 && (
-                      <div
-                        className="relative z-10 mb-2.5 pointer-events-auto"
-                        onClick={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                      >
-                        <label className="text-[10px] md:text-[11px] font-sans font-medium text-[#69736B] mb-1 flex items-center justify-between">
-                          <span>Modelo</span>
-                          <span className="text-[10px] text-stone-400 font-normal">
-                            {comp.configurations.length} opções
-                          </span>
-                        </label>
-                        <div className="relative">
-                          <select
-                            value={comp.selectedConfig?.id ? String(comp.selectedConfig.id) : (comp.selectedConfig?.Nome || "")}
-                            onChange={(e) => {
-                              setSelectedConfigMap((prev) => ({
-                                ...prev,
-                                [comp.product.id]: e.target.value,
-                              }));
-                            }}
-                            className="w-full bg-[#F7F7F8] hover:bg-[#F2F2F4] border border-[#E5E7EB] hover:border-gray-400 rounded-lg px-2.5 py-1.5 text-[11px] md:text-[12px] font-sans font-medium text-[#000000] appearance-none focus:outline-none focus:border-black pr-7 truncate cursor-pointer transition-colors shadow-2xs"
-                          >
-                            {comp.configurations.map((c: any) => (
-                              <option key={c.id || c.Nome} value={c.id ? String(c.id) : c.Nome}>
-                                {c.Nome}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-stone-500">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Marca */}
-                    <span className="text-[10px] md:text-[11px] font-sans font-semibold uppercase tracking-wider text-[#69736B]">
-                      {comp.brand}
-                    </span>
-
-                    {/* Nome do Produto com ícone externo */}
-                    <div className="flex items-center justify-between gap-1 mt-1">
-                      <h3 className="text-[13px] md:text-[14px] font-sans font-medium text-[#000000] line-clamp-1 group-hover:underline" title={comp.name}>
-                        {comp.name}
-                      </h3>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-stone-400 group-hover:text-black transition-colors">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                    </div>
-
-                    {/* Preço */}
-                    <div className="mt-2 flex flex-col">
-                      {comp.isQuoteOnly ? (
-                        <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
-                          Sob consulta
-                        </span>
-                      ) : (
-                        <>
-                          <span className="text-[16px] md:text-[19px] font-heading font-bold text-[#000000]">
-                            {formatBRL(comp.price)}
-                          </span>
-                          <span className="text-[10px] md:text-[11px] font-sans text-[#69736B] mt-0.5">
-                            Até {comp.installments}x de {formatBRL(comp.price / comp.installments)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                {/* Card Complementar com dropdown customizado e link no card inteiro */}
+                <ComplementaryCard
+                  comp={comp}
+                  cardWidthClass={cardWidthClass}
+                  cardMinHeightClass={cardMinHeightClass}
+                  imageHeightClass={imageHeightClass}
+                  onSelectConfig={handleSelectConfig}
+                />
               </React.Fragment>
             ))}
 
@@ -614,30 +734,55 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
               </div>
 
               {comp.configurations.length > 1 && (
-                <div className="pl-3.5 mt-0.5">
-                  <div className="relative max-w-[260px]">
-                    <select
-                      value={comp.selectedConfig?.id ? String(comp.selectedConfig.id) : (comp.selectedConfig?.Nome || "")}
-                      onChange={(e) => {
-                        setSelectedConfigMap((prev) => ({
-                          ...prev,
-                          [comp.product.id]: e.target.value,
-                        }));
-                      }}
-                      className="w-full bg-[#F7F7F8] border border-[#E5E7EB] rounded-lg px-2.5 py-1.5 text-[11px] font-sans font-medium text-black appearance-none pr-6 truncate"
-                    >
-                      {comp.configurations.map((c: any) => (
-                        <option key={c.id || c.Nome} value={c.id ? String(c.id) : c.Nome}>
-                          {c.Nome}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-stone-500">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <div className="relative pl-3.5 mt-1 max-w-[280px]">
+                  <button
+                    type="button"
+                    onClick={() => setMobileOpenId(mobileOpenId === comp.product.id ? null : comp.product.id)}
+                    className={`w-full flex items-center justify-between gap-2 bg-[#F7F7F8] border ${
+                      mobileOpenId === comp.product.id ? "border-black ring-1 ring-black bg-white" : "border-[#E5E7EB]"
+                    } rounded-xl px-2.5 py-1.5 text-left text-[11px] font-sans font-medium text-black`}
+                  >
+                    <span className="truncate">
+                      {comp.selectedConfig?.Nome || "Selecione o modelo"}
+                    </span>
+                    <div className={`shrink-0 text-stone-400 transition-transform ${
+                      mobileOpenId === comp.product.id ? "rotate-180 text-black" : ""
+                    }`}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="6 9 12 15 18 9" />
                       </svg>
                     </div>
-                  </div>
+                  </button>
+
+                  {mobileOpenId === comp.product.id && (
+                    <div className="absolute left-3.5 right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-1 z-30 max-h-[200px] overflow-y-auto cart-scroll flex flex-col gap-0.5">
+                      {comp.configurations.map((c: any) => {
+                        const isSelected =
+                          String(comp.selectedConfig?.id) === String(c.id) ||
+                          comp.selectedConfig?.Nome === c.Nome;
+                        return (
+                          <button
+                            key={c.id || c.Nome}
+                            type="button"
+                            onClick={() => {
+                              handleSelectConfig(comp.product.id, c.id ? String(c.id) : c.Nome);
+                              setMobileOpenId(null);
+                            }}
+                            className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-left text-[11px] font-sans ${
+                              isSelected ? "bg-black text-white font-medium" : "text-stone-700 hover:bg-stone-100"
+                            }`}
+                          >
+                            <span className="truncate">{c.Nome}</span>
+                            {isSelected && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-white">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </li>
