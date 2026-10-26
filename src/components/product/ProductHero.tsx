@@ -802,7 +802,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
               touchStartX.current = null;
               touchStartY.current = null;
             }}
-            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-start touch-pan-y rounded-none md:rounded-[26px] overflow-hidden ${activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
+            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-center md:self-start mx-auto md:mx-0 touch-pan-y rounded-none md:rounded-[26px] overflow-hidden ${activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
               }`}
           >
             {activeImageUrl ? (
@@ -820,7 +820,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     fill
                     priority
                     draggable={false}
-                    className="object-cover object-center select-none pointer-events-none transition-transform"
+                    className="object-contain object-center select-none pointer-events-none transition-transform"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 1000px"
                     quality={95}
                   />
