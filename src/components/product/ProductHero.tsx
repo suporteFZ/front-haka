@@ -802,17 +802,11 @@ export default function ProductHero({ product }: ProductHeroProps) {
               touchStartX.current = null;
               touchStartY.current = null;
             }}
-            style={{
-              aspectRatio:
-                activeImage?.width && activeImage?.height
-                  ? `${activeImage.width} / ${activeImage.height}`
-                  : "1 / 1",
-            }}
-            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-start touch-pan-y ${activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
+            className={`group relative w-full aspect-square max-w-[950px] max-h-[calc(100vh-140px)] flex items-center justify-center select-none self-start touch-pan-y rounded-none md:rounded-[26px] overflow-hidden ${activeImageUrl ? (isZoomed ? "md:cursor-zoom-out" : "md:cursor-zoom-in") : ""
               }`}
           >
             {activeImageUrl ? (
-              <div className="relative w-full h-full overflow-hidden rounded-none md:rounded-[26px] flex items-center justify-center bg-white">
+              <div className="relative w-full h-full overflow-hidden flex items-center justify-center">
                 <div
                   className="relative w-full h-full flex items-center justify-center transition-transform duration-300 ease-out will-change-transform"
                   style={{

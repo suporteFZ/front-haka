@@ -359,11 +359,9 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     return null;
   }
 
-  // Imagem do produto principal (sincronizada dinamicamente com a variação/foto ativa no Hero)
+  // Imagem do produto principal: sempre a primeira foto da galeria da variação ativa ou do produto (nunca muda ao navegar no carrossel de fotos)
   const productMainImg = useMemo(() => {
-    if (productCtx?.activeGalleryImageUrl) return productCtx.activeGalleryImageUrl;
     if (productCtx?.activeVariationPhotoUrl) return productCtx.activeVariationPhotoUrl;
-    if (activeImageUrl) return activeImageUrl;
 
     const firstVar = product.Variacoes?.[0];
     if (firstVar) {
@@ -388,7 +386,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
       return getStrapiMedia(product.Galeria[0].url);
     }
     return null;
-  }, [product, activeImageUrl, productCtx?.activeGalleryImageUrl, productCtx?.activeVariationPhotoUrl]);
+  }, [product, productCtx?.activeVariationPhotoUrl]);
 
   // Preço do produto principal (sincronizado com o Hero: variação > promo válido > normal)
   const productMainPrice = useMemo(() => {
@@ -498,17 +496,22 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     }));
   };
 
-  // Ajuste dinâmico de largura e altura fixa idêntica para todos os cards
+  // Verifica se algum produto complementar possui múltiplas opções/configurações (modelos)
+  const hasAnyComplementaryOptions = useMemo(() => {
+    return complementaryList.some((c) => c.configurations && c.configurations.length > 1);
+  }, [complementaryList]);
+
+  // Ajuste dinâmico de largura e altura fixa idêntica para todos os cards (compacto sem espaço vazio quando não há opções)
   const isThreeProducts = complementaryList.length >= 2;
   const cardWidthClass = isThreeProducts
     ? "w-[210px] sm:w-[230px] md:w-[245px] xl:w-[275px]"
     : "w-[280px] md:w-[310px] lg:w-[330px] xl:w-[350px]";
   const cardHeightClass = isThreeProducts
-    ? "h-[430px] md:h-[450px]"
-    : "h-[450px] md:h-[470px]";
+    ? (hasAnyComplementaryOptions ? "h-[390px] md:h-[410px]" : "h-[330px] md:h-[350px]")
+    : (hasAnyComplementaryOptions ? "h-[400px] md:h-[420px]" : "h-[340px] md:h-[360px]");
   const imageHeightClass = isThreeProducts
-    ? "h-[175px] md:h-[210px]"
-    : "h-[220px] md:h-[240px]";
+    ? "h-[175px] md:h-[195px]"
+    : "h-[195px] md:h-[215px]";
 
   return (
     <section className="w-full mt-10 md:mt-24 px-4 sm:px-6 md:px-0">
