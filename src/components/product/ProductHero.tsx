@@ -820,7 +820,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     fill
                     priority
                     draggable={false}
-                    className="object-contain select-none pointer-events-none transition-transform"
+                    className="object-cover object-center select-none pointer-events-none transition-transform"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 1000px"
                     quality={95}
                   />
