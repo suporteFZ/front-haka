@@ -88,6 +88,11 @@ export default function TopNav({
             <Link
               key={item.id}
               href={item.Link || "/"}
+              onClick={() => {
+                setIsCartOpen(false);
+                setActiveMenuId(null);
+                setIsSearchOpen(false);
+              }}
               className={`cursor-pointer transition-opacity duration-300 hover:opacity-70 ${isCompactLayout ? "text-black" : "text-white"}`}
             >
               {item.Nome}
@@ -102,6 +107,11 @@ export default function TopNav({
           <Link
             key={item.id}
             href={item.Link || "/"}
+            onClick={() => {
+              setIsCartOpen(false);
+              setActiveMenuId(null);
+              setIsSearchOpen(false);
+            }}
             className="cursor-pointer transition-opacity duration-300 hover:opacity-70"
           >
             {item.Nome}

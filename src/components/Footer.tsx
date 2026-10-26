@@ -14,6 +14,13 @@ export default function Footer({ globalData }: FooterProps) {
   const bgImage = getStrapiMedia(Footer.cta_imagem_fundo?.url);
   const logoFzUrl = getStrapiMedia(Footer.logo_fz?.url);
 
+  const rawFzLink = Footer.link_logo_fz || globalData.link_logo_fz;
+  const fzLink = rawFzLink
+    ? rawFzLink.startsWith("http://") || rawFzLink.startsWith("https://") || rawFzLink.startsWith("/")
+      ? rawFzLink
+      : `https://${rawFzLink}`
+    : null;
+
   return (
     <footer className="w-full flex flex-col mt-auto bg-black text-white">
       {/* 1. SEÇÃO PRE-FOOTER (CTA) */}
@@ -117,7 +124,21 @@ export default function Footer({ globalData }: FooterProps) {
             {/* Feito com (No mobile fica no meio) */}
             <div className="flex items-center gap-2 order-2 md:order-3">
               <span>Feito com 💛 por</span>
-              {logoFzUrl ? (
+              {fzLink ? (
+                <a
+                  href={fzLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:opacity-80 transition-opacity inline-flex items-center"
+                  aria-label="FZ Commerce"
+                >
+                  {logoFzUrl ? (
+                    <Image src={logoFzUrl} alt="FZ Commerce" width={100} height={20} className="object-contain" />
+                  ) : (
+                    <span className="text-white font-bold tracking-wider">FZ COMMERCE</span>
+                  )}
+                </a>
+              ) : logoFzUrl ? (
                 <Image src={logoFzUrl} alt="FZ Commerce" width={100} height={20} className="object-contain" />
               ) : (
                 <span className="text-white font-bold tracking-wider">FZ COMMERCE</span>

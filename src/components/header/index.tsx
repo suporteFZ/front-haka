@@ -57,6 +57,14 @@ export default function Header({ globalData }: HeaderProps) {
     }
   }, [isScrolled]);
 
+  // Fecha o carrinho, menus e busca automaticamente ao mudar de rota / página
+  useEffect(() => {
+    setIsCartOpen(false);
+    setActiveMenuId(null);
+    setIsSearchOpen(false);
+    setIsMobileMenuOpen(false);
+  }, [pathname, setIsCartOpen]);
+
   // Desabilita o scroll do body e pausa o Lenis quando o menu mobile ou o carrinho estiver aberto
   useEffect(() => {
     if (isMobileMenuOpen || isCartOpen) {
@@ -122,7 +130,10 @@ export default function Header({ globalData }: HeaderProps) {
           <MegaMenu 
             isMegaMenuOpen={isMegaMenuOpen}
             activeItem={activeItem}
-            onClose={() => setActiveMenuId(null)}
+            onClose={() => {
+              setActiveMenuId(null);
+              setIsCartOpen(false);
+            }}
           />
 
           {/* CONTENT LAYER 3: BUSCA INTERNA */}
@@ -159,7 +170,10 @@ export default function Header({ globalData }: HeaderProps) {
       {/* MOBILE MENU (GAVETA DA DIREITA) */}
       <MobileMenu
         isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
+        onClose={() => {
+          setIsMobileMenuOpen(false);
+          setIsCartOpen(false);
+        }}
         globalData={globalData}
         currentLogo={fallbackLogoPreta} // O painel branco sempre usa a logo preta
         logoSize={logoSize}
