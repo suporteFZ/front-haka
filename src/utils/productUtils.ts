@@ -1,3 +1,24 @@
+/**
+ * Compara se duas configurações são equivalentes.
+ * Prioriza a comparação por ID único do Strapi.
+ * Se não houver ID, compara por referência ou por Nome + Descricao + Codigo.
+ */
+export function isConfigEqual(
+  a?: ConfiguracaoItem | null,
+  b?: ConfiguracaoItem | null
+): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.id !== undefined && b.id !== undefined && a.id !== null && b.id !== null) {
+    return String(a.id) === String(b.id);
+  }
+  return (
+    a.Nome === b.Nome &&
+    (a.Descricao || "") === (b.Descricao || "") &&
+    (a.Codigo || "") === (b.Codigo || "")
+  );
+}
+
 export interface ConfiguracaoItem {
   id?: number | string;
   Nome: string;
@@ -108,12 +129,20 @@ export function expandProductsForListing(products: any[], query?: string): any[]
           ? cfg.Nome
           : `${product.Nome} — ${cfg.Nome}`;
 
+        const params = new URLSearchParams();
+        params.set("config", cfg.Nome);
+        if (cfg.id !== undefined && cfg.id !== null) {
+          params.set("cfgId", String(cfg.id));
+        }
+
         result.push({
           ...product,
           id: `${product.id}-cfg-${cfg.id || idx}`,
           originalId: product.id,
           Nome: configTitle,
-          slug: `${product.slug}?config=${encodeURIComponent(cfg.Nome)}`,
+          slug: `${product.slug}?${params.toString()}`,
+          Subtitulo: cfg.Descricao || product.Subtitulo,
+          Descricao: cfg.Descricao || product.Subtitulo,
           Preco: cfg.Preco || product.Preco,
           Preco_promocional: cfg.Preco_promocional || product.Preco_promocional,
           Galeria: cardGaleria,
@@ -122,6 +151,7 @@ export function expandProductsForListing(products: any[], query?: string): any[]
           Variacoes: [],
           isConfigurationCard: true,
           configurationName: cfg.Nome,
+          configurationId: cfg.id,
         });
       });
     } else {

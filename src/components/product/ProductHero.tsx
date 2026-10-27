@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import Image from "next/image";
 import { getStrapiMedia } from "@/utils/api";
 import { useProduct, VariationGroup, VariationOption, Revestimento, CorRevestimento, OpcaoMedida } from "@/context/ProductContext";
-import { ConfiguracaoItem } from "@/utils/productUtils";
+import { ConfiguracaoItem, isConfigEqual } from "@/utils/productUtils";
 import { useCart } from "@/context/CartContext";
 
 interface MediaItem {
@@ -735,7 +735,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
     const options: string[] = [];
     if (hasConfiguracoes && selectedConfiguracao) {
-      options.push(`Modelo: ${selectedConfiguracao.Nome}`);
+      options.push(selectedConfiguracao.Descricao ? `Modelo: ${selectedConfiguracao.Nome} (${selectedConfiguracao.Descricao})` : `Modelo: ${selectedConfiguracao.Nome}`);
     }
     if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
       options.push(`Revestimento: ${selectedRevestimento.Nome} (${selectedCorRevestimento.Nome_cor})`);
@@ -756,7 +756,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
 
     const variationLabel = options.length > 0 ? options.join(" • ") : (selectedConfiguracao ? selectedConfiguracao.Nome : "Padrão");
 
-    const configKey = selectedConfiguracao ? `cfg:${selectedConfiguracao.Nome}` : "";
+    const configKey = selectedConfiguracao ? `cfg:${selectedConfiguracao.id || `${selectedConfiguracao.Nome}-${selectedConfiguracao.Descricao || ""}`}` : "";
     const medidaKey = !isQuoteOnly && hasMedidas && selectedMedida ? `medida:${selectedMedida.Titulo}` : "";
 
     const compositeCartId = isQuoteOnly
@@ -937,9 +937,9 @@ export default function ProductHero({ product }: ProductHeroProps) {
           </h1>
 
           {/* Subtítulo / Descrição Curta */}
-          {product.Subtitulo && (
+          {(selectedConfiguracao?.Descricao || product.Subtitulo) && (
             <p className="mt-2 text-[12px] md:text-[13px] font-sans text-[#69736B] leading-relaxed">
-              {product.Subtitulo}
+              {selectedConfiguracao?.Descricao || product.Subtitulo}
             </p>
           )}
 
@@ -1193,7 +1193,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 className={`accordion-content ${isRevestimentoSectionOpen ? "open" : ""}`}
               >
                 <div className="accordion-content-inner">
-                  <div className="pt-3.5 pb-1 flex flex-col">
+                  <div className="pt-3.5 pb-1 px-1 flex flex-col">
                     <p className="text-[12px] font-sans text-[#69736B] mb-3">
                       {isQuoteOnly
                         ? "Consulte os acabamentos e cores disponíveis para este modelo"
@@ -1201,7 +1201,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     </p>
 
                     {/* CAMADA 2: ACORDEÕES SANFONA POR TIPO DE REVESTIMENTO (MATERIAL) */}
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2.5 p-0.5">
                     {revestimentos.map((rev) => {
                       const isSelectedRev = !isQuoteOnly && selectedRevestimento?.Nome === rev.Nome;
                       const isMaterialOpen = openMaterialNome === rev.Nome;
@@ -1436,21 +1436,21 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 className={`accordion-content ${isConfiguracaoSectionOpen ? "open" : ""}`}
               >
                 <div className="accordion-content-inner">
-                  <div className="pt-3.5 pb-1 flex flex-col">
+                  <div className="pt-3.5 pb-1 px-1 flex flex-col">
                     <p className="text-[12px] font-sans text-[#69736B] mb-3">
                       Selecione o modelo e configuração da cadeira
                     </p>
 
-                    <div className="flex flex-col gap-2">
-                      {configuracoes.map((cfg) => {
-                        const isSelected = selectedConfiguracao?.Nome === cfg.Nome;
+                    <div className="flex flex-col gap-2 p-0.5">
+                      {configuracoes.map((cfg, idx) => {
+                        const isSelected = isConfigEqual(selectedConfiguracao, cfg);
                         const photoUrl = cfg.Galeria?.[0]?.url
                           ? getStrapiMedia(cfg.Galeria[0].url)
                           : null;
 
                         return (
                           <div
-                            key={cfg.Nome}
+                            key={cfg.id ? `cfg-${cfg.id}` : `cfg-${cfg.Nome}-${cfg.Descricao || ""}-${idx}`}
                             className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer min-h-[58px] ${isSelected
                                 ? "border-stone-900 bg-stone-50/40 ring-1 ring-stone-900 shadow-2xs"
                                 : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
@@ -1463,6 +1463,17 @@ export default function ProductHero({ product }: ProductHeroProps) {
                               setLastClickedConfiguracao(cfg);
                               selectConfiguracao(cfg);
                               setActiveImageIndex(0);
+                              if (typeof window !== "undefined") {
+                                const params = new URLSearchParams(window.location.search);
+                                params.set("config", cfg.Nome);
+                                if (cfg.id !== undefined && cfg.id !== null) {
+                                  params.set("cfgId", String(cfg.id));
+                                } else {
+                                  params.delete("cfgId");
+                                }
+                                const newUrl = `${window.location.pathname}?${params.toString()}`;
+                                window.history.replaceState(null, "", newUrl);
+                              }
                             }}
                             onKeyDown={(e) => {
                               if (e.key === "Enter" || e.key === " ") {
@@ -1472,17 +1483,28 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 setLastClickedConfiguracao(cfg);
                                 selectConfiguracao(cfg);
                                 setActiveImageIndex(0);
+                                if (typeof window !== "undefined") {
+                                  const params = new URLSearchParams(window.location.search);
+                                  params.set("config", cfg.Nome);
+                                  if (cfg.id !== undefined && cfg.id !== null) {
+                                    params.set("cfgId", String(cfg.id));
+                                  } else {
+                                    params.delete("cfgId");
+                                  }
+                                  const newUrl = `${window.location.pathname}?${params.toString()}`;
+                                  window.history.replaceState(null, "", newUrl);
+                                }
                               }
                             }}
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               {photoUrl ? (
-                                <div className="relative w-11 h-11 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
+                                <div className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-[6px] overflow-hidden border border-black/10 shrink-0 bg-white">
                                   <Image
                                     src={photoUrl}
                                     alt={cfg.Nome}
                                     fill
-                                    className="object-cover"
+                                    className="object-contain p-0.5"
                                   />
                                 </div>
                               ) : null}
@@ -1496,6 +1518,11 @@ export default function ProductHero({ product }: ProductHeroProps) {
                                 >
                                   {cfg.Nome}
                                 </span>
+                                {cfg.Descricao ? (
+                                  <span className="text-[11px] sm:text-[12px] font-sans text-[#69736B] leading-snug mt-0.5">
+                                    {cfg.Descricao}
+                                  </span>
+                                ) : null}
                                 {!isQuoteOnly && cfg.Preco_adicional && Number(cfg.Preco_adicional) > 0 ? (
                                   <span className="text-[11px] font-sans text-[#006642] font-medium leading-none mt-1 whitespace-nowrap">
                                     +{formatBRL(Number(cfg.Preco_adicional))}
@@ -1582,14 +1609,14 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 className={`accordion-content ${isComponentsSectionOpen ? "open" : ""}`}
               >
                 <div className="accordion-content-inner">
-                  <div className="pt-3.5 pb-1 flex flex-col">
+                  <div className="pt-3.5 pb-1 px-1 flex flex-col">
                     <p className="text-[12px] font-sans text-[#69736B] mb-3">
                       {isQuoteOnly
                         ? "Consulte as configurações e opcionais disponíveis para este modelo"
                         : "Personalize os componentes e opcionais da sua cadeira"}
                     </p>
 
-                    <div className="flex flex-col gap-2.5">
+                    <div className="flex flex-col gap-2.5 p-0.5">
                     {variationGroups.map((group) => {
                       const isGroupOpen = openGroupTitulo === group.Titulo;
                       const currentSelected = !isQuoteOnly ? selectedGroupOptions[group.Titulo] : null;

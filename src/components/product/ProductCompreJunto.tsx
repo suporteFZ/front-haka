@@ -6,7 +6,7 @@ import Link from "next/link";
 import { getStrapiMedia } from "@/utils/api";
 import { useProduct } from "@/context/ProductContext";
 import { useCart } from "@/context/CartContext";
-import { getProductConfigurations, ConfiguracaoItem } from "@/utils/productUtils";
+import { getProductConfigurations, ConfiguracaoItem, isConfigEqual } from "@/utils/productUtils";
 
 interface ProductCompreJuntoProps {
   product: any;
@@ -126,7 +126,7 @@ function ComplementaryCard({
                 } rounded-xl px-2.5 py-1.5 text-left transition-all duration-200 cursor-pointer shadow-2xs group/btn`}
               >
                 <span className="text-[11px] md:text-[12px] font-sans font-medium text-[#000000] truncate">
-                  {comp.selectedConfig?.Nome || "Selecione o modelo"}
+                  {comp.selectedConfig?.Nome || "Selecione o modelo"}{comp.selectedConfig?.Descricao ? ` (${comp.selectedConfig.Descricao})` : ""}
                 </span>
                 <div
                   className={`shrink-0 text-stone-400 group-hover/btn:text-black transition-transform duration-200 ${
@@ -145,9 +145,7 @@ function ComplementaryCard({
                   className="absolute -left-2 -right-2 top-full mt-2 bg-white border border-[#E5E7EB] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.22)] p-2 z-50 max-h-[340px] overflow-y-auto overscroll-contain animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-1.5 cart-scroll"
                 >
                   {comp.configurations.map((c: any) => {
-                    const isSelected =
-                      String(comp.selectedConfig?.id) === String(c.id) ||
-                      comp.selectedConfig?.Nome === c.Nome;
+                    const isSelected = isConfigEqual(comp.selectedConfig, c);
                     return (
                       <button
                         key={c.id || c.Nome}
@@ -162,9 +160,16 @@ function ComplementaryCard({
                             : "text-stone-700 hover:bg-stone-100 hover:text-black"
                         }`}
                       >
-                        <span className="leading-snug line-clamp-2 flex-1">
-                          {c.Nome}
-                        </span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="leading-snug line-clamp-2">
+                            {c.Nome}
+                          </span>
+                          {c.Descricao ? (
+                            <span className={`text-[10px] leading-tight mt-0.5 line-clamp-1 ${isSelected ? "text-stone-300" : "text-stone-400"}`}>
+                              {c.Descricao}
+                            </span>
+                          ) : null}
+                        </div>
                         {isSelected && (
                           <svg
                             width="14"
@@ -424,7 +429,11 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     // 1. Adiciona o produto principal com opções selecionadas
     const options: string[] = [];
     if (productCtx?.hasConfiguracoes && productCtx.selectedConfiguracao) {
-      options.push(`Modelo: ${productCtx.selectedConfiguracao.Nome}`);
+      options.push(
+        productCtx.selectedConfiguracao.Descricao
+          ? `Modelo: ${productCtx.selectedConfiguracao.Nome} (${productCtx.selectedConfiguracao.Descricao})`
+          : `Modelo: ${productCtx.selectedConfiguracao.Nome}`
+      );
     }
     if (!isMainQuoteOnly && productCtx?.hasRevestimentos && productCtx.selectedRevestimento && productCtx.selectedCorRevestimento) {
       options.push(`Revestimento: ${productCtx.selectedRevestimento.Nome} (${productCtx.selectedCorRevestimento.Nome_cor})`);
@@ -447,7 +456,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
       ? options.join(" • ")
       : (productCtx?.variationDisplayName || product.Variacoes?.[0]?.Nome_cor || "Padrão");
 
-    const configKey = productCtx?.selectedConfiguracao ? `cfg:${productCtx.selectedConfiguracao.Nome}` : "";
+    const configKey = productCtx?.selectedConfiguracao ? `cfg:${productCtx.selectedConfiguracao.id || `${productCtx.selectedConfiguracao.Nome}-${productCtx.selectedConfiguracao.Descricao || ""}`}` : "";
     const mainCartId = isMainQuoteOnly
       ? `${product.id}-quote-${configKey}-0`
       : `${product.id}-${mainVariationLabel}-0`;
@@ -468,9 +477,13 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
     // 2. Adiciona cada produto complementar com o modelo selecionado
     complementaryList.forEach((comp) => {
       const compVariationLabel = comp.selectedConfig
-        ? `Modelo: ${comp.selectedConfig.Nome}`
+        ? (comp.selectedConfig.Descricao
+            ? `Modelo: ${comp.selectedConfig.Nome} (${comp.selectedConfig.Descricao})`
+            : `Modelo: ${comp.selectedConfig.Nome}`)
         : (comp.variation?.Nome_cor || "Padrão");
-      const compConfigKey = comp.selectedConfig ? `cfg:${comp.selectedConfig.Nome}` : "";
+      const compConfigKey = comp.selectedConfig
+        ? `cfg:${comp.selectedConfig.id || `${comp.selectedConfig.Nome}-${comp.selectedConfig.Descricao || ""}`}`
+        : "";
 
       cart.addItem({
         id: comp.isQuoteOnly
@@ -480,7 +493,13 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
         name: comp.name,
         slug: comp.product.slug || comp.product.Nome.toLowerCase(),
         variationName: compVariationLabel,
-        options: comp.selectedConfig ? [`Modelo: ${comp.selectedConfig.Nome}`] : undefined,
+        options: comp.selectedConfig
+          ? [
+              comp.selectedConfig.Descricao
+                ? `Modelo: ${comp.selectedConfig.Nome} (${comp.selectedConfig.Descricao})`
+                : `Modelo: ${comp.selectedConfig.Nome}`
+            ]
+          : undefined,
         price: comp.isQuoteOnly ? 0 : comp.price,
         isQuoteOnly: comp.isQuoteOnly,
         imageUrl: comp.imageUrl,
@@ -742,9 +761,7 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                   {mobileOpenId === comp.product.id && (
                     <div className="absolute left-3.5 right-0 top-full mt-1 bg-white border border-[#E5E7EB] rounded-xl shadow-lg p-1 z-30 max-h-[200px] overflow-y-auto cart-scroll flex flex-col gap-0.5">
                       {comp.configurations.map((c: any) => {
-                        const isSelected =
-                          String(comp.selectedConfig?.id) === String(c.id) ||
-                          comp.selectedConfig?.Nome === c.Nome;
+                        const isSelected = isConfigEqual(comp.selectedConfig, c);
                         return (
                           <button
                             key={c.id || c.Nome}
@@ -757,7 +774,14 @@ export default function ProductCompreJunto({ product, activeImageUrl }: ProductC
                               isSelected ? "bg-black text-white font-medium" : "text-stone-700 hover:bg-stone-100"
                             }`}
                           >
-                            <span className="truncate">{c.Nome}</span>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="truncate">{c.Nome}</span>
+                              {c.Descricao ? (
+                                <span className={`text-[10px] leading-tight truncate ${isSelected ? "text-stone-300" : "text-stone-400"}`}>
+                                  {c.Descricao}
+                                </span>
+                              ) : null}
+                            </div>
                             {isSelected && (
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-white">
                                 <polyline points="20 6 9 17 4 12" />

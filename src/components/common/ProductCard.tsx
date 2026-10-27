@@ -33,6 +33,13 @@ export interface ProductCardItem {
       Preco_adicional?: number;
     }>;
   }>;
+  Configuracoes?: Array<{
+    Nome?: string;
+    Descricao?: string;
+    Preco?: number;
+    Preco_promocional?: number;
+  }>;
+  Descricao?: string;
   Galeria?: any[];
   Imagem_destaque?: any;
   Foto_mais_vendidos?: any;
@@ -160,9 +167,9 @@ export default function ProductCard({ product }: { product: ProductCardItem }) {
         </h3>
 
         {/* Descrição */}
-        {product.Subtitulo && (
+        {(product.Descricao || product.Subtitulo || product.Configuracoes?.[0]?.Descricao) && (
           <p className="text-[11px] md:text-[13px] font-sans text-[#777777] leading-relaxed line-clamp-2">
-            {product.Subtitulo}
+            {product.Descricao || product.Subtitulo || product.Configuracoes?.[0]?.Descricao}
           </p>
         )}
 

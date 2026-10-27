@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from "react";
 import { getStrapiMedia } from "@/utils/api";
-import { ConfiguracaoItem, getProductConfigurations, getAccessoryGroups } from "@/utils/productUtils";
+import { ConfiguracaoItem, getProductConfigurations, getAccessoryGroups, isConfigEqual } from "@/utils/productUtils";
 
 export interface ColorOption {
   name: string;
@@ -245,6 +245,15 @@ export function ProductProvider({
     }
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
+      const cfgIdParam = params.get("cfgId");
+      if (cfgIdParam) {
+        const matchedById = configuracoes.find((c) => String(c.id) === String(cfgIdParam));
+        if (matchedById) {
+          setSelectedConfiguracao(matchedById);
+          return;
+        }
+      }
+
       const configParam = params.get("config");
       if (configParam) {
         const decoded = decodeURIComponent(configParam).toLowerCase().trim();
@@ -517,7 +526,11 @@ export function ProductProvider({
     const parts: string[] = [];
 
     if (hasConfiguracoes && selectedConfiguracao) {
-      parts.push(`Configuração: ${selectedConfiguracao.Nome}`);
+      parts.push(
+        selectedConfiguracao.Descricao
+          ? `Configuração: ${selectedConfiguracao.Nome} (${selectedConfiguracao.Descricao})`
+          : `Configuração: ${selectedConfiguracao.Nome}`
+      );
     }
 
     if (!isQuoteOnly && hasRevestimentos && selectedRevestimento && selectedCorRevestimento) {
