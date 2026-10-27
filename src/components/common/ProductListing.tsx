@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
+import { useLenis } from "lenis/react";
 import ProductCard, { ProductCardItem } from "@/components/common/ProductCard";
 
 interface PaginationMeta {
@@ -57,6 +58,7 @@ export default function ProductListing({
 }: ProductListingProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
+  const lenis = useLenis();
 
   const effectiveSearchQuery = searchQuery || searchParams?.get("q") || "";
   const effectiveCategorySlug =
@@ -244,7 +246,17 @@ export default function ProductListing({
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
     if (gridTopRef.current) {
-      gridTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (lenis) {
+        lenis.scrollTo(gridTopRef.current, { offset: -120, duration: 0.8 });
+      } else {
+        gridTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    } else {
+      if (lenis) {
+        lenis.scrollTo(0, { duration: 0.8 });
+      } else {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     }
   };
 
