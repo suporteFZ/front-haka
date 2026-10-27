@@ -182,6 +182,20 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const selectConfiguracao = productCtx?.selectConfiguracao || (() => { });
   const [isConfiguracaoSectionOpen, setIsConfiguracaoSectionOpen] = useState(true);
   const [lastClickedConfiguracao, setLastClickedConfiguracao] = useState<ConfiguracaoItem | null>(null);
+  const modelScrollRef = useRef<HTMLDivElement>(null);
+
+  // Garante que, ao carregar ou trocar de modelo, o card selecionado fique visível na rolagem interna sem alterar o scroll da página
+  useEffect(() => {
+    if (!modelScrollRef.current) return;
+    const selectedEl = modelScrollRef.current.querySelector<HTMLElement>('[data-selected="true"]');
+    if (selectedEl) {
+      const container = modelScrollRef.current;
+      const elTop = selectedEl.offsetTop - container.offsetTop;
+      if (elTop < container.scrollTop || elTop + selectedEl.clientHeight > container.scrollTop + container.clientHeight) {
+        container.scrollTop = Math.max(0, elTop - 12);
+      }
+    }
+  }, [selectedConfiguracao, isConfiguracaoSectionOpen]);
 
   const hasVariationGroups = productCtx?.hasVariationGroups || (product.Grupos_variacao && product.Grupos_variacao.length > 0) || false;
   const variationGroups: VariationGroup[] = productCtx?.variationGroups || product.Grupos_variacao || [];
@@ -1441,7 +1455,11 @@ export default function ProductHero({ product }: ProductHeroProps) {
                       Selecione o modelo e configuração da cadeira
                     </p>
 
-                    <div className="flex flex-col gap-2 p-0.5">
+                    <div
+                      ref={modelScrollRef}
+                      className="flex flex-col gap-2 p-1 pr-2 max-h-[480px] overflow-y-auto cart-scroll"
+                      data-lenis-prevent
+                    >
                       {configuracoes.map((cfg, idx) => {
                         const isSelected = isConfigEqual(selectedConfiguracao, cfg);
                         const photoUrl = cfg.Galeria?.[0]?.url
@@ -1451,6 +1469,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                         return (
                           <div
                             key={cfg.id ? `cfg-${cfg.id}` : `cfg-${cfg.Nome}-${cfg.Descricao || ""}-${idx}`}
+                            data-selected={isSelected ? "true" : "false"}
                             className={`flex items-center justify-between p-3 rounded-[8px] border text-left transition-all cursor-pointer min-h-[58px] ${isSelected
                                 ? "border-stone-900 bg-stone-50/40 ring-1 ring-stone-900 shadow-2xs"
                                 : "border-stone-200 bg-white hover:border-stone-400 hover:bg-stone-50/50"
