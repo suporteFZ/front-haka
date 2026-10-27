@@ -84,19 +84,19 @@ export default function ProductListing({
     setIsPaginatedMode(false);
   }, [initialItems]);
 
-  // Reseta paginação ao alterar qualquer filtro
-  useEffect(() => {
-    setDisplayCount(PAGE_SIZE);
-    setCurrentPage(1);
-    setIsPaginatedMode(false);
-  }, [selectedPriceRange, selectedBrand, selectedColor, selectedSort]);
-
   // Filtros ativos
   const [selectedPriceRange, setSelectedPriceRange] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [selectedColor, setSelectedColor] = useState("all");
   const [selectedSort, setSelectedSort] = useState("default");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // Reseta paginação ao alterar qualquer filtro
+  useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+    setCurrentPage(1);
+    setIsPaginatedMode(false);
+  }, [selectedPriceRange, selectedBrand, selectedColor, selectedSort]);
 
   // Estados da Gaveta Mobile
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
