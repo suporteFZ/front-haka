@@ -65,23 +65,18 @@ export default function ProductListing({
       ? pathname.split("/").filter(Boolean).pop()
       : "");
 
-  const PAGE_SIZE = 24;
+  const PAGE_SIZE = 12;
   const initialItems = useMemo(
     () => initialProducts || propProducts || [],
     [initialProducts, propProducts]
   );
   const [allProductsCatalog, setAllProductsCatalog] = useState<ProductCardItem[]>(initialItems);
-  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isPaginatedMode, setIsPaginatedMode] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Sincroniza o catálogo quando initialItems mudar
   useEffect(() => {
     setAllProductsCatalog(initialItems);
-    setDisplayCount(PAGE_SIZE);
     setCurrentPage(1);
-    setIsPaginatedMode(false);
   }, [initialItems]);
 
   // Filtros ativos
@@ -91,11 +86,9 @@ export default function ProductListing({
   const [selectedSort, setSelectedSort] = useState("default");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  // Reseta paginação ao alterar qualquer filtro
+  // Reseta para a página 1 ao alterar qualquer filtro
   useEffect(() => {
-    setDisplayCount(PAGE_SIZE);
     setCurrentPage(1);
-    setIsPaginatedMode(false);
   }, [selectedPriceRange, selectedBrand, selectedColor, selectedSort]);
 
   // Estados da Gaveta Mobile
@@ -244,64 +237,19 @@ export default function ProductListing({
   const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
 
   const displayedProducts = useMemo(() => {
-    if (isPaginatedMode) {
-      const start = (currentPage - 1) * PAGE_SIZE;
-      return filteredAndSortedProducts.slice(start, start + PAGE_SIZE);
-    }
-    return filteredAndSortedProducts.slice(0, displayCount);
-  }, [filteredAndSortedProducts, isPaginatedMode, currentPage, displayCount]);
-
-  const hasMore = !isPaginatedMode && displayCount < totalItems;
-
-  const handleLoadMore = () => {
-    setIsPaginatedMode(false);
-    setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, totalItems));
-  };
-
-  const handleShowAll = () => {
-    setIsPaginatedMode(false);
-    setDisplayCount(totalItems);
-  };
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredAndSortedProducts.slice(start, start + PAGE_SIZE);
+  }, [filteredAndSortedProducts, currentPage]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
-    setIsPaginatedMode(true);
     if (gridTopRef.current) {
       gridTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
-  // Carregamento contínuo automático ao rolar até o sentinel (opcional, suave)
-  useEffect(() => {
-    if (!hasMore || isLoadingMore || isPaginatedMode) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          setIsLoadingMore(true);
-          setTimeout(() => {
-            setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, totalItems));
-            setIsLoadingMore(false);
-          }, 150);
-        }
-      },
-      {
-        rootMargin: "300px",
-        threshold: 0.1,
-      }
-    );
-
-    const currentTarget = observerTargetRef.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [hasMore, isLoadingMore, isPaginatedMode, totalItems]);
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const endItem = Math.min(currentPage * PAGE_SIZE, totalItems);
 
   const hasActiveFilters =
     selectedPriceRange !== "all" ||
@@ -681,27 +629,19 @@ export default function ProductListing({
               ))}
             </div>
 
-            {/* Sentinel discreto para o Infinite Scroll */}
-            <div ref={observerTargetRef} className="h-4 w-full" />
 
-            {/* Loading Spinner discreto */}
-            {isLoadingMore && (
-              <div className="w-full py-4 flex justify-center items-center">
-                <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
-              </div>
-            )}
 
             {/* ========================================================================= */}
-            {/* ÁREA DE PAGINAÇÃO E CARREGAR MAIS                                         */}
+            {/* ÁREA DE PAGINAÇÃO (12 PRODUTOS POR PÁGINA)                                */}
             {/* ========================================================================= */}
             {totalItems > 0 && (
-              <div className="w-full mt-12 md:mt-16 flex flex-col items-center justify-center">
-                {/* Contador de Produtos */}
-                <div className="mb-6 text-center">
+              <div className="w-full mt-10 md:mt-14 flex flex-col items-center justify-center">
+                {/* Contador Informativo */}
+                <div className="mb-4 text-center">
                   <span className="text-[13px] md:text-[14px] font-sans text-stone-600">
-                    Exibindo{" "}
+                    Mostrando{" "}
                     <strong className="font-semibold text-black">
-                      {displayedProducts.length}
+                      {startItem}–{endItem}
                     </strong>{" "}
                     de{" "}
                     <strong className="font-semibold text-black">{totalItems}</strong>{" "}
@@ -709,77 +649,15 @@ export default function ProductListing({
                   </span>
                 </div>
 
-                {/* Botões de Ação: Carregar Mais ou Conclusão */}
-                {hasMore ? (
-                  <div className="flex flex-wrap items-center justify-center gap-3">
-                    <button
-                      type="button"
-                      onClick={handleLoadMore}
-                      disabled={isLoadingMore}
-                      className="px-8 py-3.5 rounded-full bg-black hover:bg-neutral-800 text-white text-[13px] sm:text-[14px] font-sans font-medium transition-all duration-200 active:scale-[0.98] shadow-xs cursor-pointer flex items-center gap-2.5"
-                    >
-                      {isLoadingMore ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg
-                          width="15"
-                          height="15"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M12 5v14M5 12h14" />
-                        </svg>
-                      )}
-                      <span>Carregar mais produtos</span>
-                      <span className="text-[12px] opacity-70 font-normal">
-                        (+{Math.min(PAGE_SIZE, totalItems - displayCount)} restantes)
-                      </span>
-                    </button>
-
-                    {totalItems - displayCount > PAGE_SIZE && (
-                      <button
-                        type="button"
-                        onClick={handleShowAll}
-                        className="px-6 py-3.5 rounded-full border border-stone-300 hover:border-black text-stone-800 hover:text-black text-[13px] font-sans font-medium transition-all duration-200 cursor-pointer"
-                      >
-                        Carregar todos ({totalItems})
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  !isPaginatedMode && totalItems > PAGE_SIZE && (
-                    <div className="flex items-center gap-2 text-[13px] font-sans text-stone-500 py-2">
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="text-emerald-600"
-                      >
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      <span>Todos os {totalItems} produtos foram carregados</span>
-                    </div>
-                  )
-                )}
-
-                {/* Paginação Numérica (quando houver mais de 1 página) */}
+                {/* Paginação Numérica */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-1.5 mt-8 border-t border-stone-100 pt-6 w-full max-w-md">
+                  <div className="flex items-center justify-center gap-1.5 w-full max-w-md">
                     <button
                       type="button"
                       onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                       disabled={currentPage === 1}
                       aria-label="Página anterior"
-                      className="px-3.5 py-2 rounded-lg text-[13px] font-sans font-medium transition-colors border border-stone-200 text-stone-700 hover:border-stone-400 hover:text-black disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                      className="px-3.5 py-2 rounded-lg text-[13px] font-sans font-medium transition-colors border border-stone-200 text-stone-700 hover:border-stone-400 hover:text-black disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
                     >
                       <svg
                         width="14"
@@ -793,14 +671,12 @@ export default function ProductListing({
                       >
                         <polyline points="15 18 9 12 15 6" />
                       </svg>
-                      <span className="hidden sm:inline">Anterior</span>
+                      <span>Anterior</span>
                     </button>
 
                     <div className="flex items-center gap-1 mx-1">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
-                        const isCurrent =
-                          (isPaginatedMode && currentPage === p) ||
-                          (!isPaginatedMode && p === 1);
+                        const isCurrent = currentPage === p;
                         return (
                           <button
                             key={p}
@@ -824,9 +700,9 @@ export default function ProductListing({
                       onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                       disabled={currentPage === totalPages}
                       aria-label="Próxima página"
-                      className="px-3.5 py-2 rounded-lg text-[13px] font-sans font-medium transition-colors border border-stone-200 text-stone-700 hover:border-stone-400 hover:text-black disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                      className="px-3.5 py-2 rounded-lg text-[13px] font-sans font-medium transition-colors border border-stone-200 text-stone-700 hover:border-stone-400 hover:text-black disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1.5"
                     >
-                      <span className="hidden sm:inline">Próxima</span>
+                      <span>Próxima</span>
                       <svg
                         width="14"
                         height="14"
