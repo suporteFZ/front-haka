@@ -65,19 +65,31 @@ export default function ProductListing({
       ? pathname.split("/").filter(Boolean).pop()
       : "");
 
-  const initialItems = initialProducts || propProducts || [];
-  const [products, setProducts] = useState<ProductCardItem[]>(initialItems.slice(0, 20));
-  // Mantém catálogo de produtos conhecidos para não perder opções de marcas e cores ao filtrar
+  const PAGE_SIZE = 24;
+  const initialItems = useMemo(
+    () => initialProducts || propProducts || [],
+    [initialProducts, propProducts]
+  );
   const [allProductsCatalog, setAllProductsCatalog] = useState<ProductCardItem[]>(initialItems);
-  const [page, setPage] = useState(initialPagination?.page || 1);
-  const [pageCount, setPageCount] = useState(
-    initialPagination?.pageCount || Math.ceil(initialItems.length / 20) || 1
-  );
-  const [hasMore, setHasMore] = useState(
-    (initialPagination?.page || 1) <
-      (initialPagination?.pageCount || Math.ceil(initialItems.length / 20) || 1)
-  );
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isPaginatedMode, setIsPaginatedMode] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Sincroniza o catálogo quando initialItems mudar
+  useEffect(() => {
+    setAllProductsCatalog(initialItems);
+    setDisplayCount(PAGE_SIZE);
+    setCurrentPage(1);
+    setIsPaginatedMode(false);
+  }, [initialItems]);
+
+  // Reseta paginação ao alterar qualquer filtro
+  useEffect(() => {
+    setDisplayCount(PAGE_SIZE);
+    setCurrentPage(1);
+    setIsPaginatedMode(false);
+  }, [selectedPriceRange, selectedBrand, selectedColor, selectedSort]);
 
   // Filtros ativos
   const [selectedPriceRange, setSelectedPriceRange] = useState("all");
@@ -110,6 +122,7 @@ export default function ProductListing({
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const gridTopRef = useRef<HTMLDivElement>(null);
   const observerTargetRef = useRef<HTMLDivElement>(null);
   const isInitialMount = useRef(true);
 
@@ -158,122 +171,118 @@ export default function ProductListing({
     return Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
   }, [allProductsCatalog]);
 
-  // Função para buscar produtos (para paginação ou nova filtragem)
-  const fetchProducts = useCallback(
-    async (pageToFetch: number, isNewFilter = false) => {
-      try {
-        const params = new URLSearchParams();
-        if (effectiveSearchQuery) params.set("q", effectiveSearchQuery);
-        if (effectiveCategorySlug) {
-          params.set("category", effectiveCategorySlug);
-          if (subcategorySlugs && subcategorySlugs.length > 0) {
-            params.set("subcategories", subcategorySlugs.join(","));
-          }
-        }
-        if (brandSlug) {
-          params.set("brandSlug", brandSlug);
-        } else if (selectedBrand !== "all") {
-          params.set("brand", selectedBrand);
-        }
-        if (selectedColor !== "all") params.set("color", selectedColor);
+  // Filtra e ordena produtos localmente com precisão instantânea
+  const filteredAndSortedProducts = useMemo(() => {
+    let list = [...allProductsCatalog];
 
-        if (selectedPriceRange !== "all") {
-          const range = PRICE_RANGES.find((r) => r.id === selectedPriceRange);
-          if (range?.min !== undefined) params.set("priceMin", String(range.min));
-          if (range?.max !== undefined && range.max !== Infinity) {
-            params.set("priceMax", String(range.max));
-          }
-        }
-
-        if (selectedSort !== "default") params.set("sort", selectedSort);
-
-        params.set("page", String(pageToFetch));
-        params.set("pageSize", "20");
-
-        const res = await fetch(`/api/products?${params.toString()}`);
-        if (!res.ok) return;
-
-        const json = await res.json();
-        const newItems: ProductCardItem[] = json.data || [];
-        const meta: PaginationMeta = json.meta?.pagination || {
-          page: pageToFetch,
-          pageSize: 20,
-          pageCount: 1,
-          total: newItems.length,
-        };
-
-        if (newItems.length > 0) {
-          setAllProductsCatalog((prev) => {
-            const map = new Map<string, ProductCardItem>();
-            prev.forEach((p) => map.set(String(p.id), p));
-            newItems.forEach((p) => map.set(String(p.id), p));
-            return Array.from(map.values());
-          });
-        }
-
-        if (isNewFilter) {
-          setProducts(newItems);
-        } else {
-          setProducts((prev) => {
-            const existingIds = new Set(prev.map((item) => String(item.id)));
-            const filteredNew = newItems.filter(
-              (item) => !existingIds.has(String(item.id))
-            );
-            return [...prev, ...filteredNew];
-          });
-        }
-
-        setPage(meta.page);
-        setPageCount(meta.pageCount);
-        setHasMore(meta.page < meta.pageCount);
-      } catch (err) {
-        console.error("Erro ao carregar mais produtos:", err);
-      }
-    },
-    [effectiveSearchQuery, effectiveCategorySlug, subcategorySlugs, brandSlug, selectedBrand, selectedColor, selectedPriceRange, selectedSort]
-  );
-
-  // Resetar quando a busca inicial ou categoria mudar (ex: nova navegação)
-  useEffect(() => {
-    const items = initialProducts || propProducts || [];
-    setProducts(items.slice(0, 20));
-    setAllProductsCatalog(items);
-    setPage(initialPagination?.page || 1);
-    const calculatedPageCount =
-      initialPagination?.pageCount || Math.ceil(items.length / 20) || 1;
-    setPageCount(calculatedPageCount);
-    setHasMore((initialPagination?.page || 1) < calculatedPageCount);
-    setSelectedPriceRange("all");
-    setSelectedBrand("all");
-    setSelectedColor("all");
-    setSelectedSort("default");
-    isInitialMount.current = true;
-  }, [initialProducts, propProducts, initialPagination, effectiveSearchQuery, effectiveCategorySlug, subcategorySlugs, brandSlug]);
-
-  // Recarregar da página 1 quando filtros mudarem
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
+    // 1. Marca
+    const targetBrand = brandSlug || (selectedBrand !== "all" ? selectedBrand : null);
+    if (targetBrand && targetBrand !== "all") {
+      const lower = targetBrand.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.marca?.Nome?.toLowerCase().trim() === lower ||
+          p.marca?.slug?.toLowerCase().trim() === lower
+      );
     }
 
-    setIsLoadingMore(true);
-    fetchProducts(1, true).finally(() => {
-      setIsLoadingMore(false);
-    });
-  }, [selectedPriceRange, selectedBrand, selectedColor, selectedSort, fetchProducts]);
+    // 2. Faixa de Preço
+    if (selectedPriceRange !== "all") {
+      const range = PRICE_RANGES.find((r) => r.id === selectedPriceRange);
+      if (range) {
+        list = list.filter((p) => {
+          let price = Number(p.Preco_promocional || p.Preco || 0);
+          if (!price && p.Variacoes && Array.isArray(p.Variacoes)) {
+            const vPrices = p.Variacoes.map((v: any) =>
+              Number(v.Preco_promocional || v.Preco || v.Preco_diferenciado || 0)
+            ).filter((v: number) => v > 0);
+            if (vPrices.length > 0) price = Math.min(...vPrices);
+          }
+          if (range.max === Infinity) {
+            return price >= range.min;
+          }
+          return price >= range.min && price <= range.max;
+        });
+      }
+    }
 
-  // Infinite Scroll Trigger via IntersectionObserver
+    // 3. Cor
+    if (selectedColor !== "all") {
+      const lowerColor = selectedColor.toLowerCase().trim();
+      list = list.filter((p) => {
+        const hasVarColor = p.Variacoes?.some(
+          (v: any) => v.Nome_cor?.toLowerCase().trim() === lowerColor
+        );
+        const hasCfgColor = p.configurationName?.toLowerCase().includes(lowerColor);
+        return hasVarColor || hasCfgColor;
+      });
+    }
+
+    // 4. Ordenação
+    if (selectedSort === "price-asc") {
+      list.sort((a, b) => {
+        const pa = Number(a.Preco_promocional || a.Preco || 0);
+        const pb = Number(b.Preco_promocional || b.Preco || 0);
+        return pa - pb;
+      });
+    } else if (selectedSort === "price-desc") {
+      list.sort((a, b) => {
+        const pa = Number(a.Preco_promocional || a.Preco || 0);
+        const pb = Number(b.Preco_promocional || b.Preco || 0);
+        return pb - pa;
+      });
+    } else if (selectedSort === "name-asc") {
+      list.sort((a, b) => (a.Nome || "").localeCompare(b.Nome || ""));
+    } else if (selectedSort === "name-desc") {
+      list.sort((a, b) => (b.Nome || "").localeCompare(a.Nome || ""));
+    }
+
+    return list;
+  }, [allProductsCatalog, selectedPriceRange, selectedBrand, selectedColor, selectedSort, brandSlug]);
+
+  const totalItems = filteredAndSortedProducts.length;
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+
+  const displayedProducts = useMemo(() => {
+    if (isPaginatedMode) {
+      const start = (currentPage - 1) * PAGE_SIZE;
+      return filteredAndSortedProducts.slice(start, start + PAGE_SIZE);
+    }
+    return filteredAndSortedProducts.slice(0, displayCount);
+  }, [filteredAndSortedProducts, isPaginatedMode, currentPage, displayCount]);
+
+  const hasMore = !isPaginatedMode && displayCount < totalItems;
+
+  const handleLoadMore = () => {
+    setIsPaginatedMode(false);
+    setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, totalItems));
+  };
+
+  const handleShowAll = () => {
+    setIsPaginatedMode(false);
+    setDisplayCount(totalItems);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    setIsPaginatedMode(true);
+    if (gridTopRef.current) {
+      gridTopRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // Carregamento contínuo automático ao rolar até o sentinel (opcional, suave)
   useEffect(() => {
-    if (!hasMore || isLoadingMore) return;
+    if (!hasMore || isLoadingMore || isPaginatedMode) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
           setIsLoadingMore(true);
-          fetchProducts(page + 1, false).finally(() => {
+          setTimeout(() => {
+            setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, totalItems));
             setIsLoadingMore(false);
-          });
+          }, 150);
         }
       },
       {
@@ -292,7 +301,7 @@ export default function ProductListing({
         observer.unobserve(currentTarget);
       }
     };
-  }, [hasMore, isLoadingMore, page, fetchProducts]);
+  }, [hasMore, isLoadingMore, isPaginatedMode, totalItems]);
 
   const hasActiveFilters =
     selectedPriceRange !== "all" ||
@@ -660,22 +669,179 @@ export default function ProductListing({
           </button>
         </div>
 
+        {/* Âncora invisível para rolagem suave ao trocar de página */}
+        <div ref={gridTopRef} className="scroll-mt-36" />
+
         {/* Grade de Produtos (2 colunas no Mobile, 4 colunas no Desktop) */}
-        {products.length > 0 ? (
+        {displayedProducts.length > 0 ? (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6 mt-6 md:mt-10">
-              {products.map((product) => (
+              {displayedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
 
-            {/* Sentinel para o Infinite Scroll */}
-            <div ref={observerTargetRef} className="h-10 w-full" />
+            {/* Sentinel discreto para o Infinite Scroll */}
+            <div ref={observerTargetRef} className="h-4 w-full" />
 
             {/* Loading Spinner discreto */}
             {isLoadingMore && (
-              <div className="w-full py-8 flex justify-center items-center">
+              <div className="w-full py-4 flex justify-center items-center">
                 <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+
+            {/* ========================================================================= */}
+            {/* ÁREA DE PAGINAÇÃO E CARREGAR MAIS                                         */}
+            {/* ========================================================================= */}
+            {totalItems > 0 && (
+              <div className="w-full mt-12 md:mt-16 flex flex-col items-center justify-center">
+                {/* Contador de Produtos */}
+                <div className="mb-6 text-center">
+                  <span className="text-[13px] md:text-[14px] font-sans text-stone-600">
+                    Exibindo{" "}
+                    <strong className="font-semibold text-black">
+                      {displayedProducts.length}
+                    </strong>{" "}
+                    de{" "}
+                    <strong className="font-semibold text-black">{totalItems}</strong>{" "}
+                    {totalItems === 1 ? "produto" : "produtos"}
+                  </span>
+                </div>
+
+                {/* Botões de Ação: Carregar Mais ou Conclusão */}
+                {hasMore ? (
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className="px-8 py-3.5 rounded-full bg-black hover:bg-neutral-800 text-white text-[13px] sm:text-[14px] font-sans font-medium transition-all duration-200 active:scale-[0.98] shadow-xs cursor-pointer flex items-center gap-2.5"
+                    >
+                      {isLoadingMore ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.4"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                      )}
+                      <span>Carregar mais produtos</span>
+                      <span className="text-[12px] opacity-70 font-normal">
+                        (+{Math.min(PAGE_SIZE, totalItems - displayCount)} restantes)
+                      </span>
+                    </button>
+
+                    {totalItems - displayCount > PAGE_SIZE && (
+                      <button
+                        type="button"
+                        onClick={handleShowAll}
+                        className="px-6 py-3.5 rounded-full border border-stone-300 hover:border-black text-stone-800 hover:text-black text-[13px] font-sans font-medium transition-all duration-200 cursor-pointer"
+                      >
+                        Carregar todos ({totalItems})
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  !isPaginatedMode && totalItems > PAGE_SIZE && (
+                    <div className="flex items-center gap-2 text-[13px] font-sans text-stone-500 py-2">
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-emerald-600"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span>Todos os {totalItems} produtos foram carregados</span>
+                    </div>
+                  )
+                )}
+
+                {/* Paginação Numérica (quando houver mais de 1 página) */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 mt-8 border-t border-stone-100 pt-6 w-full max-w-md">
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      aria-label="Página anterior"
+                      className="px-3.5 py-2 rounded-lg text-[13px] font-sans font-medium transition-colors border border-stone-200 text-stone-700 hover:border-stone-400 hover:text-black disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="15 18 9 12 15 6" />
+                      </svg>
+                      <span className="hidden sm:inline">Anterior</span>
+                    </button>
+
+                    <div className="flex items-center gap-1 mx-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                        const isCurrent =
+                          (isPaginatedMode && currentPage === p) ||
+                          (!isPaginatedMode && p === 1);
+                        return (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => handlePageChange(p)}
+                            aria-current={isCurrent ? "page" : undefined}
+                            className={`min-w-[38px] h-[38px] px-2 rounded-lg text-[13px] font-sans font-medium transition-all cursor-pointer ${
+                              isCurrent
+                                ? "bg-black text-white shadow-xs"
+                                : "text-stone-700 hover:bg-stone-100 hover:text-black"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      aria-label="Próxima página"
+                      className="px-3.5 py-2 rounded-lg text-[13px] font-sans font-medium transition-colors border border-stone-200 text-stone-700 hover:border-stone-400 hover:text-black disabled:opacity-40 disabled:pointer-events-none cursor-pointer flex items-center gap-1"
+                    >
+                      <span className="hidden sm:inline">Próxima</span>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </>

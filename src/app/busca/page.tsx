@@ -33,7 +33,28 @@ async function getSearchProducts(query: string): Promise<ProductCardItem[]> {
     if (!res.ok) return [];
 
     const json = await res.json();
-    const rawItems = json.data || [];
+    let rawItems = json.data || [];
+
+    const totalPages = json.meta?.pagination?.pageCount || 1;
+    if (totalPages > 1) {
+      const pagePromises = [];
+      for (let p = 2; p <= totalPages; p++) {
+        const nextUrl = getStrapiURL(
+          `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+        );
+        pagePromises.push(
+          fetchStrapi(nextUrl, { cache: "no-store" })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => d?.data || [])
+            .catch(() => [])
+        );
+      }
+      const otherPages = await Promise.all(pagePromises);
+      otherPages.forEach((items) => {
+        rawItems = rawItems.concat(items);
+      });
+    }
+
     return expandProductsForListing(rawItems, query);
   } catch (error) {
     console.error("Erro ao buscar produtos na pesquisa:", error);
