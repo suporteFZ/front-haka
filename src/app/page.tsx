@@ -43,7 +43,7 @@ async function getBestSellers() {
 async function getCatalogProducts() {
   try {
     const url = getStrapiURL(
-      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true"
+      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true"
     );
     const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];

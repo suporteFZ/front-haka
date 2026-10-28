@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useLenis } from "lenis/react";
 import ProductCard, { ProductCardItem } from "@/components/common/ProductCard";
+import { getEntityCategories } from "@/utils/productUtils";
 
 interface PaginationMeta {
   page: number;
@@ -84,6 +85,7 @@ export default function ProductListing({
   // Filtros ativos
   const [selectedPriceRange, setSelectedPriceRange] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState("all");
   const [selectedSort, setSelectedSort] = useState("default");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -91,25 +93,28 @@ export default function ProductListing({
   // Reseta para a página 1 ao alterar qualquer filtro
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedPriceRange, selectedBrand, selectedColor, selectedSort]);
+  }, [selectedPriceRange, selectedBrand, selectedCategories, selectedColor, selectedSort]);
 
   // Estados da Gaveta Mobile
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isMobileSortOpen, setIsMobileSortOpen] = useState(false);
   const [tempPriceRange, setTempPriceRange] = useState("all");
   const [tempBrand, setTempBrand] = useState("all");
+  const [tempCategories, setTempCategories] = useState<string[]>([]);
   const [tempColor, setTempColor] = useState("all");
   const [mobileExpandedSections, setMobileExpandedSections] = useState<{
+    category: boolean;
     price: boolean;
     brand: boolean;
     color: boolean;
   }>({
+    category: false,
     price: false,
     brand: false,
     color: false,
   });
 
-  const toggleMobileSection = (section: "price" | "brand" | "color") => {
+  const toggleMobileSection = (section: "category" | "price" | "brand" | "color") => {
     setMobileExpandedSections((prev) => ({
       ...prev,
       [section]: !prev[section],
@@ -166,9 +171,49 @@ export default function ProductListing({
     return Array.from(colorMap.entries()).map(([name, hex]) => ({ name, hex }));
   }, [allProductsCatalog]);
 
+  // Extrair categorias únicas dos produtos conhecidos do catálogo
+  const availableCategories = useMemo(() => {
+    const map = new Map<
+      string,
+      { id?: string | number; Nome: string; slug: string; count: number }
+    >();
+
+    allProductsCatalog.forEach((p) => {
+      const cats = getEntityCategories(p);
+      cats.forEach((cat) => {
+        const slug = cat.slug || cat.Nome?.toLowerCase().trim();
+        if (!slug || !cat.Nome) return;
+        if (!map.has(slug)) {
+          map.set(slug, {
+            id: cat.id || cat.documentId,
+            Nome: cat.Nome,
+            slug: cat.slug || slug,
+            count: 0,
+          });
+        }
+        map.get(slug)!.count += 1;
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      a.Nome.localeCompare(b.Nome, "pt-BR")
+    );
+  }, [allProductsCatalog]);
+
   // Filtra e ordena produtos localmente com precisão instantânea
   const filteredAndSortedProducts = useMemo(() => {
     let list = [...allProductsCatalog];
+
+    // 0. Categorias (Múltipla escolha)
+    if (selectedCategories.length > 0) {
+      list = list.filter((p) => {
+        const pCats = getEntityCategories(p);
+        return pCats.some((c) => {
+          const s = c.slug?.toLowerCase()?.trim();
+          return s && selectedCategories.includes(s);
+        });
+      });
+    }
 
     // 1. Marca
     const targetBrand = brandSlug || (selectedBrand !== "all" ? selectedBrand : null);
@@ -233,7 +278,7 @@ export default function ProductListing({
     }
 
     return list;
-  }, [allProductsCatalog, selectedPriceRange, selectedBrand, selectedColor, selectedSort, brandSlug]);
+  }, [allProductsCatalog, selectedCategories, selectedPriceRange, selectedBrand, selectedColor, selectedSort, brandSlug]);
 
   const totalItems = filteredAndSortedProducts.length;
   const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
@@ -300,12 +345,14 @@ export default function ProductListing({
   const hasActiveFilters =
     selectedPriceRange !== "all" ||
     (!brandSlug && selectedBrand !== "all") ||
+    selectedCategories.length > 0 ||
     selectedColor !== "all" ||
     selectedSort !== "default";
 
   const handleClearFilters = () => {
     setSelectedPriceRange("all");
     setSelectedBrand("all");
+    setSelectedCategories([]);
     setSelectedColor("all");
     setSelectedSort("default");
     setOpenDropdown(null);
@@ -455,6 +502,108 @@ export default function ProductListing({
                       {brand}
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dropdown: Categorias (Múltipla Escolha) */}
+          {availableCategories.length > 0 && !categorySlug && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenDropdown(openDropdown === "category" ? null : "category")
+                }
+                className={`flex items-center gap-1.5 text-[13px] md:text-[14px] font-sans cursor-pointer transition-colors ${
+                  selectedCategories.length > 0
+                    ? "font-semibold text-black"
+                    : "text-stone-800 hover:text-black"
+                }`}
+              >
+                <span>
+                  {selectedCategories.length === 0
+                    ? "Categorias"
+                    : selectedCategories.length === 1
+                    ? availableCategories.find((c) => c.slug === selectedCategories[0])?.Nome || "1 Categoria"
+                    : `Categorias (${selectedCategories.length})`}
+                </span>
+                {selectedCategories.length > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-black inline-block ml-0.5" />
+                )}
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`transition-transform duration-200 text-stone-700 ${
+                    openDropdown === "category" ? "rotate-180" : ""
+                  }`}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {openDropdown === "category" && (
+                <div
+                  data-lenis-prevent
+                  className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 bg-white border border-stone-200 rounded-xl shadow-lg p-2 z-30 flex flex-col gap-1 max-h-72 overflow-y-auto cart-scroll"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCategories([]);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer flex items-center justify-between ${
+                      selectedCategories.length === 0
+                        ? "bg-stone-100 font-semibold text-black"
+                        : "hover:bg-stone-50 text-stone-700"
+                    }`}
+                  >
+                    <span>Todas as categorias</span>
+                    <span className="text-[11px] text-stone-400">
+                      ({allProductsCatalog.length})
+                    </span>
+                  </button>
+
+                  <div className="h-[1px] bg-stone-100 my-1" />
+
+                  {availableCategories.map((cat) => {
+                    const isChecked = selectedCategories.includes(cat.slug);
+                    return (
+                      <label
+                        key={cat.slug}
+                        className={`w-full px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer flex items-center justify-between select-none ${
+                          isChecked
+                            ? "bg-stone-50 font-medium text-black"
+                            : "hover:bg-stone-50/70 text-stone-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedCategories((prev) =>
+                                prev.includes(cat.slug)
+                                  ? prev.filter((s) => s !== cat.slug)
+                                  : [...prev, cat.slug]
+                              );
+                            }}
+                            className="w-4 h-4 rounded border-stone-300 text-black focus:ring-black cursor-pointer accent-black shrink-0"
+                          />
+                          <span className="truncate">{cat.Nome}</span>
+                        </div>
+                        <span className="text-[11px] text-stone-400 shrink-0 ml-2">
+                          ({cat.count})
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -610,6 +759,7 @@ export default function ProductListing({
             onClick={() => {
               setTempPriceRange(selectedPriceRange);
               setTempBrand(selectedBrand);
+              setTempCategories(selectedCategories);
               setTempColor(selectedColor);
               setIsMobileFilterOpen(true);
             }}
@@ -1059,6 +1209,113 @@ export default function ProductListing({
             </div>
           )}
 
+          {/* Seção Dropdown: Categorias (Múltipla Escolha) */}
+          {availableCategories.length > 0 && !categorySlug && (
+            <div className="flex flex-col py-3">
+              <button
+                type="button"
+                onClick={() => toggleMobileSection("category")}
+                className="w-full flex items-center justify-between py-2 text-left cursor-pointer group"
+              >
+                <div className="flex flex-col">
+                  <span className="text-[15px] font-heading font-semibold text-black">
+                    Categorias
+                  </span>
+                  {tempCategories.length > 0 && (
+                    <span className="text-[12px] font-sans text-stone-500 mt-0.5">
+                      {tempCategories.length === 1
+                        ? availableCategories.find((c) => c.slug === tempCategories[0])?.Nome || "1 selecionada"
+                        : `${tempCategories.length} selecionadas`}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {tempCategories.length > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-black inline-block" />
+                  )}
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`text-stone-500 transition-transform duration-300 ease-out ${
+                      mobileExpandedSections.category ? "rotate-180" : ""
+                    }`}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+              </button>
+
+              <div
+                className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${
+                  mobileExpandedSections.category
+                    ? "grid-rows-[1fr] opacity-100"
+                    : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                }`}
+              >
+                <div className="overflow-hidden">
+                  <div
+                    data-lenis-prevent
+                    className="pt-2 pb-1 max-h-64 overflow-y-auto pr-1 flex flex-col gap-2 cart-scroll"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setTempCategories([])}
+                      className={`flex items-center justify-between px-4 py-3 rounded-xl border text-[13px] font-sans transition-all text-left cursor-pointer ${
+                        tempCategories.length === 0
+                          ? "border-black bg-stone-50 font-semibold text-black"
+                          : "border-stone-200 text-stone-700 hover:border-stone-300"
+                      }`}
+                    >
+                      <span>Todas as categorias</span>
+                      <span className="text-[11px] text-stone-400">
+                        ({allProductsCatalog.length})
+                      </span>
+                    </button>
+
+                    {availableCategories.map((cat) => {
+                      const isSelected = tempCategories.includes(cat.slug);
+                      return (
+                        <label
+                          key={cat.slug}
+                          className={`flex items-center justify-between px-4 py-3 rounded-xl border text-[13px] font-sans transition-all text-left cursor-pointer select-none ${
+                            isSelected
+                              ? "border-black bg-stone-50 font-semibold text-black"
+                              : "border-stone-200 text-stone-700 hover:border-stone-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                setTempCategories((prev) =>
+                                  prev.includes(cat.slug)
+                                    ? prev.filter((s) => s !== cat.slug)
+                                    : [...prev, cat.slug]
+                                );
+                              }}
+                              className="w-4 h-4 rounded border-stone-300 text-black focus:ring-black cursor-pointer accent-black shrink-0"
+                            />
+                            <span className="truncate">{cat.Nome}</span>
+                          </div>
+                          <span className="text-[11px] text-stone-400 shrink-0 ml-2">
+                            ({cat.count})
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Seção Dropdown: Cor */}
           {availableColors.length > 0 && (
             <div className="flex flex-col py-3">
@@ -1178,9 +1435,11 @@ export default function ProductListing({
             onClick={() => {
               setTempPriceRange("all");
               setTempBrand("all");
+              setTempCategories([]);
               setTempColor("all");
               setSelectedPriceRange("all");
               setSelectedBrand("all");
+              setSelectedCategories([]);
               setSelectedColor("all");
               setIsMobileFilterOpen(false);
             }}
@@ -1193,6 +1452,7 @@ export default function ProductListing({
             onClick={() => {
               setSelectedPriceRange(tempPriceRange);
               setSelectedBrand(tempBrand);
+              setSelectedCategories(tempCategories);
               setSelectedColor(tempColor);
               setIsMobileFilterOpen(false);
             }}

@@ -249,7 +249,12 @@ export function expandProductsForListing(
           continue;
         }
       }
-      result.push(product);
+      const prodCats = getEntityCategories(product);
+      result.push({
+        ...product,
+        categorias: prodCats,
+        categoria: prodCats[0] || product.categoria,
+      });
     }
   }
 

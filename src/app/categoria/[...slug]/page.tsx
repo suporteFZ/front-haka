@@ -44,16 +44,14 @@ async function getCategoryProducts(
     const orClauses: string[] = [];
     allSlugs.forEach((s) => {
       const enc = encodeURIComponent(s);
-      orClauses.push(`filters[$or][${orClauses.length}][categoria][slug][$eq]=${enc}`);
       orClauses.push(`filters[$or][${orClauses.length}][categorias][slug][$eq]=${enc}`);
-      orClauses.push(`filters[$or][${orClauses.length}][Configuracoes][categoria][slug][$eq]=${enc}`);
       orClauses.push(`filters[$or][${orClauses.length}][Configuracoes][categorias][slug][$eq]=${enc}`);
     });
 
     const filterQuery = `&${orClauses.join("&")}`;
 
     const url = getStrapiURL(
-      `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
     const res = await fetchStrapi(url, { cache: "no-store" });
@@ -67,7 +65,7 @@ async function getCategoryProducts(
       const pagePromises = [];
       for (let p = 2; p <= totalPages; p++) {
         const nextUrl = getStrapiURL(
-          `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+          `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
         );
         pagePromises.push(
           fetchStrapi(nextUrl, { cache: "no-store" })
