@@ -74,6 +74,7 @@ async function getProductData(slug: string) {
       "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[garantias]": "true",
       "populate[categoria]": "true",
+      "populate[categorias]": "true",
       "populate[marca]": "true",
       "populate[Imagem_destaque]": "true",
       "populate[Galeria]": "true",

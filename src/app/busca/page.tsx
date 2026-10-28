@@ -26,7 +26,7 @@ async function getSearchProducts(query: string): Promise<ProductCardItem[]> {
     ].join("&");
 
     const url = getStrapiURL(
-      `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
     const res = await fetchStrapi(url, { cache: "no-store" });
@@ -40,7 +40,7 @@ async function getSearchProducts(query: string): Promise<ProductCardItem[]> {
       const pagePromises = [];
       for (let p = 2; p <= totalPages; p++) {
         const nextUrl = getStrapiURL(
-          `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+          `/api/produtos?filters[Ativo][$ne]=false&${filterQuery}&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
         );
         pagePromises.push(
           fetchStrapi(nextUrl, { cache: "no-store" })

@@ -98,11 +98,12 @@ export default function ProductRelated({
         </div>
       </div>
 
-      {/* Carrossel de Cards com Snap e Rolagem Fluida */}
+      {/* Carrossel de Cards com Snap e Rolagem Fluida (Scrollbar nativa oculta) */}
       <div
         ref={sliderRef}
         onScroll={checkScroll}
-        className="flex items-stretch gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory py-2 px-4 sm:px-6 md:px-0"
+        data-lenis-prevent
+        className="flex items-stretch gap-4 md:gap-6 overflow-x-auto scrollbar-hide no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden scroll-smooth snap-x snap-mandatory py-2 px-4 sm:px-6 md:px-0"
       >
         {products.map((item) => (
           <div

@@ -30,6 +30,41 @@ export interface ConfiguracaoItem {
   Preco_adicional?: number;
   Cor_hex?: string;
   Descricao?: string;
+  categoria?: {
+    id?: number | string;
+    documentId?: string;
+    Nome?: string;
+    slug?: string;
+  } | null;
+  categorias?: Array<{
+    id?: number | string;
+    documentId?: string;
+    Nome?: string;
+    slug?: string;
+  }>;
+}
+
+/**
+ * Extrai todas as categorias atribuídas a uma entidade (produto ou configuração/modelo),
+ * suportando tanto o campo singular `categoria` quanto o campo plural `categorias`.
+ */
+export function getEntityCategories(entity: any): any[] {
+  if (!entity) return [];
+  const list: any[] = [];
+  if (Array.isArray(entity.categorias)) {
+    list.push(...entity.categorias);
+  }
+  if (
+    entity.categoria &&
+    !list.some(
+      (c) =>
+        (c?.slug && c.slug === entity.categoria?.slug) ||
+        (c?.id && String(c.id) === String(entity.categoria?.id))
+    )
+  ) {
+    list.push(entity.categoria);
+  }
+  return list.filter(Boolean);
 }
 
 /**
@@ -73,11 +108,23 @@ export function getAccessoryGroups(product: any): any[] {
  * (Busca, Categorias e Catálogo), exibindo cada variação com sua própria foto e título.
  * Se `query` for fornecida e não corresponder ao nome do produto como um todo, filtra
  * apenas as configurações que correspondam ao termo pesquisado.
+ * Se `targetCategorySlugs` for fornecido, respeita o campo de categoria individual de cada
+ * modelo (ou do produto se o modelo não tiver categoria própria).
  */
-export function expandProductsForListing(products: any[], query?: string): any[] {
+export function expandProductsForListing(
+  products: any[],
+  query?: string,
+  targetCategorySlugs?: string | string[]
+): any[] {
   if (!Array.isArray(products)) return [];
   const result: any[] = [];
   const cleanQuery = query?.trim().toLowerCase();
+
+  const allowedSlugs = targetCategorySlugs
+    ? (Array.isArray(targetCategorySlugs) ? targetCategorySlugs : [targetCategorySlugs])
+        .filter(Boolean)
+        .map((s) => s.toLowerCase().trim())
+    : null;
 
   for (const product of products) {
     const configs = getProductConfigurations(product);
@@ -91,7 +138,7 @@ export function expandProductsForListing(products: any[], query?: string): any[]
         product.marca?.Nome?.toLowerCase().includes(cleanQuery) ||
         product.categoria?.Nome?.toLowerCase().includes(cleanQuery);
 
-      const targetConfigs = productMatchesQuery
+      let targetConfigs = productMatchesQuery
         ? configs
         : configs.filter((cfg: any) =>
             cfg.Nome?.toLowerCase().includes(cleanQuery!) ||
@@ -99,9 +146,38 @@ export function expandProductsForListing(products: any[], query?: string): any[]
             cfg.Descricao?.toLowerCase().includes(cleanQuery!)
           );
 
-      const configsToRender = targetConfigs.length > 0 ? targetConfigs : configs;
+      if (targetConfigs.length === 0) {
+        targetConfigs = configs;
+      }
 
-      configsToRender.forEach((cfg: any, idx: number) => {
+      // Se estivermos em uma listagem de categoria específica, filtra apenas as configurações
+      // cuja categoria própria (ou herdada do produto) corresponda às categorias permitidas
+      if (allowedSlugs && allowedSlugs.length > 0) {
+        targetConfigs = targetConfigs.filter((cfg: any) => {
+          const cfgCats = getEntityCategories(cfg);
+          const prodCats = getEntityCategories(product);
+
+          // Se a configuração possui categorias próprias atribuídas, usa as dela
+          if (cfgCats.length > 0) {
+            return cfgCats.some((c) => {
+              const s = c.slug?.toLowerCase()?.trim();
+              return s && allowedSlugs.includes(s);
+            });
+          }
+
+          // Se a configuração não definiu nenhuma categoria própria, herda as categorias do produto pai
+          if (prodCats.length > 0) {
+            return prodCats.some((c) => {
+              const s = c.slug?.toLowerCase()?.trim();
+              return s && allowedSlugs.includes(s);
+            });
+          }
+
+          return false;
+        });
+      }
+
+      targetConfigs.forEach((cfg: any, idx: number) => {
         const rootGaleria = Array.isArray(product.Galeria) ? product.Galeria : [];
         const cfgGaleria = Array.isArray(cfg.Galeria) && cfg.Galeria.length > 0 ? cfg.Galeria : [];
 
@@ -135,6 +211,11 @@ export function expandProductsForListing(products: any[], query?: string): any[]
           params.set("cfgId", String(cfg.id));
         }
 
+        const cfgCats = getEntityCategories(cfg);
+        const prodCats = getEntityCategories(product);
+        const effectiveCats = cfgCats.length > 0 ? cfgCats : prodCats;
+        const primaryCategoria = effectiveCats[0] || cfg.categoria || product.categoria;
+
         result.push({
           ...product,
           id: `${product.id}-cfg-${cfg.id || idx}`,
@@ -146,6 +227,8 @@ export function expandProductsForListing(products: any[], query?: string): any[]
           Preco: cfg.Preco || product.Preco,
           Preco_promocional: cfg.Preco_promocional || product.Preco_promocional,
           Galeria: cardGaleria,
+          categoria: primaryCategoria,
+          categorias: effectiveCats,
           // Removemos Grupos_variacao e Variacoes do card expandido para não vazar opções de outras variações no hover
           Grupos_variacao: [],
           Variacoes: [],
@@ -155,6 +238,17 @@ export function expandProductsForListing(products: any[], query?: string): any[]
         });
       });
     } else {
+      // Produto padrão sem configurações: se estamos filtrando por categoria, valida se ele bate
+      if (allowedSlugs && allowedSlugs.length > 0) {
+        const prodCats = getEntityCategories(product);
+        const matchesCategory = prodCats.some((c) => {
+          const s = c.slug?.toLowerCase()?.trim();
+          return s && allowedSlugs.includes(s);
+        });
+        if (!matchesCategory) {
+          continue;
+        }
+      }
       result.push(product);
     }
   }

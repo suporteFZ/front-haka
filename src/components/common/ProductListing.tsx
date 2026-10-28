@@ -260,6 +260,40 @@ export default function ProductListing({
     }
   };
 
+  // Gera os números de página com reticências inteligentes (ex: 1, 2, 3, '...', 21)
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    const items: (number | string)[] = [];
+    items.push(1);
+
+    if (currentPage <= 4) {
+      // Perto do início: 1, 2, 3, 4, 5, '...', totalPages
+      for (let i = 2; i <= 5; i++) {
+        items.push(i);
+      }
+      items.push("ellipsis-end");
+    } else if (currentPage >= totalPages - 3) {
+      // Perto do fim: 1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages
+      items.push("ellipsis-start");
+      for (let i = totalPages - 4; i < totalPages; i++) {
+        items.push(i);
+      }
+    } else {
+      // No meio: 1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages
+      items.push("ellipsis-start");
+      items.push(currentPage - 1);
+      items.push(currentPage);
+      items.push(currentPage + 1);
+      items.push("ellipsis-end");
+    }
+
+    items.push(totalPages);
+    return items;
+  }, [totalPages, currentPage]);
+
   const startItem = totalItems === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const endItem = Math.min(currentPage * PAGE_SIZE, totalItems);
 
@@ -663,7 +697,7 @@ export default function ProductListing({
 
                 {/* Paginação Numérica */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-1.5 w-full max-w-md">
+                  <div className="flex items-center justify-center gap-1.5 w-full flex-wrap">
                     <button
                       type="button"
                       onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
@@ -686,8 +720,20 @@ export default function ProductListing({
                       <span>Anterior</span>
                     </button>
 
-                    <div className="flex items-center gap-1 mx-1">
-                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => {
+                    <div className="flex items-center gap-1 mx-1 flex-wrap justify-center">
+                      {paginationItems.map((item, idx) => {
+                        if (typeof item === "string") {
+                          return (
+                            <span
+                              key={`ellipsis-${idx}`}
+                              className="w-7 h-[38px] flex items-center justify-center text-stone-400 select-none font-sans text-[14px]"
+                            >
+                              …
+                            </span>
+                          );
+                        }
+
+                        const p = item;
                         const isCurrent = currentPage === p;
                         return (
                           <button

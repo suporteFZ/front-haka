@@ -39,7 +39,7 @@ async function getBrandProducts(brandSlug: string): Promise<ProductCardItem[]> {
     const url = getStrapiURL(
       `/api/produtos?filters[marca][slug][$eqi]=${encodeURIComponent(
         brandSlug
-      )}&filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      )}&filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
     );
 
     const res = await fetchStrapi(url, { cache: "no-store" });
@@ -55,7 +55,7 @@ async function getBrandProducts(brandSlug: string): Promise<ProductCardItem[]> {
         const nextUrl = getStrapiURL(
           `/api/produtos?filters[marca][slug][$eqi]=${encodeURIComponent(
             brandSlug
-          )}&filters[Ativo][$ne]=false&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+          )}&filters[Ativo][$ne]=false&pagination[page]=${p}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categoria]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
         );
         pagePromises.push(
           fetchStrapi(nextUrl, { cache: "no-store" })

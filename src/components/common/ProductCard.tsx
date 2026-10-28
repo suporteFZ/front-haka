@@ -16,7 +16,8 @@ export interface ProductCardItem {
   Parcelas?: number;
   Ativo?: boolean;
   marca?: { Nome: string };
-  categoria?: { id: number | string; documentId?: string; Nome?: string };
+  categoria?: { id: number | string; documentId?: string; Nome?: string; slug?: string };
+  categorias?: Array<{ id: number | string; documentId?: string; Nome?: string; slug?: string }>;
   Variacoes?: Array<{
     Nome_cor?: string;
     Preco?: number;

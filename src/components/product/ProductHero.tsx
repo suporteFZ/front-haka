@@ -668,13 +668,48 @@ export default function ProductHero({ product }: ProductHeroProps) {
   const activeImageUrl = activeImage ? getStrapiMedia(activeImage.url) : null;
 
   // Imagem de miniatura para o botão flutuante / cápsula
-  const floatingBtnThumbUrl =
-    (product.Galeria?.[0]?.url && getStrapiMedia(product.Galeria[0].url)) ||
-    (selectedCorRevestimento?.Miniatura?.url && getStrapiMedia(selectedCorRevestimento.Miniatura.url)) ||
-    (selectedCorRevestimento?.Galeria?.[0]?.url && getStrapiMedia(selectedCorRevestimento.Galeria[0].url)) ||
-    (currentVariation?.Miniatura?.url && getStrapiMedia(currentVariation.Miniatura.url)) ||
-    (currentVariation?.Galeria?.[0]?.url && getStrapiMedia(currentVariation.Galeria[0].url)) ||
-    activeImageUrl;
+  const floatingBtnThumbUrl = useMemo(() => {
+    if (selectedConfiguracao) {
+      if (selectedConfiguracao.Galeria?.[0]?.url) {
+        return getStrapiMedia(selectedConfiguracao.Galeria[0].url);
+      }
+      if (selectedConfiguracao.Foto?.url) {
+        return getStrapiMedia(selectedConfiguracao.Foto.url);
+      }
+    }
+    if (activeImageUrl) {
+      return activeImageUrl;
+    }
+    if (selectedCorRevestimento?.Miniatura?.url) {
+      return getStrapiMedia(selectedCorRevestimento.Miniatura.url);
+    }
+    if (selectedCorRevestimento?.Galeria?.[0]?.url) {
+      return getStrapiMedia(selectedCorRevestimento.Galeria[0].url);
+    }
+    if (currentVariation?.Miniatura?.url) {
+      return getStrapiMedia(currentVariation.Miniatura.url);
+    }
+    if (currentVariation?.Galeria?.[0]?.url) {
+      return getStrapiMedia(currentVariation.Galeria[0].url);
+    }
+    if (product.Galeria?.[0]?.url) {
+      return getStrapiMedia(product.Galeria[0].url);
+    }
+    return null;
+  }, [
+    selectedConfiguracao,
+    activeImageUrl,
+    selectedCorRevestimento,
+    currentVariation,
+    product.Galeria,
+  ]);
+
+
+
+
+
+
+
 
   // Sincroniza a imagem ativa com o contexto global do produto (para Compre Junto, etc.)
   useEffect(() => {
@@ -2011,7 +2046,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                   <div className="relative w-6 h-6 md:w-7 md:h-7">
                     <Image
                       src={floatingBtnThumbUrl}
-                      alt={product.Nome}
+                      alt={selectedConfiguracao?.Nome || product.Nome}
                       fill
                       className="object-contain"
                     />
@@ -2037,7 +2072,7 @@ export default function ProductHero({ product }: ProductHeroProps) {
                 {/* Informações: Nome + Preço */}
                 <div className="flex flex-col min-w-0 pr-1 md:pr-2">
                   <span className="text-[12px] md:text-[13px] font-sans font-medium text-[#000000] truncate leading-tight">
-                    {product.Nome}
+                    {selectedConfiguracao?.Nome || product.Nome}
                   </span>
                   {isQuoteOnly ? (
                     <span className="text-[10px] md:text-[11px] font-heading font-semibold text-[#000000] leading-none mt-0.5 whitespace-nowrap">
