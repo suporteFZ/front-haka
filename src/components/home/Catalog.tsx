@@ -147,11 +147,14 @@ export default function Catalog({
 
   const displayCategory = categories[displayIdx] || categories[0];
 
-  // Filtra produtos pela categoria ativa (compara documentId ou id)
-  const filteredProducts = allProducts.filter((p) => {
-    const catId = p.categoria?.documentId || p.categoria?.id;
+  // Filtra produtos pela categoria ativa (compara documentId ou id em todas as categorias do produto)
+  const filteredProducts = allProducts.filter((p: any) => {
     const activeId = displayCategory?.documentId || displayCategory?.id;
-    return catId === activeId;
+    if (!activeId) return false;
+    const cats: any[] = Array.isArray(p.categorias) && p.categorias.length > 0
+      ? p.categorias
+      : (p.categoria ? [p.categoria] : []);
+    return cats.some((c: any) => (c?.documentId || c?.id) === activeId);
   });
 
   // Limita a 8 produtos (2 linhas de 4)

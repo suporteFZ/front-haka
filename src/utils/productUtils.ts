@@ -30,12 +30,6 @@ export interface ConfiguracaoItem {
   Preco_adicional?: number;
   Cor_hex?: string;
   Descricao?: string;
-  categoria?: {
-    id?: number | string;
-    documentId?: string;
-    Nome?: string;
-    slug?: string;
-  } | null;
   categorias?: Array<{
     id?: number | string;
     documentId?: string;
@@ -46,25 +40,11 @@ export interface ConfiguracaoItem {
 
 /**
  * Extrai todas as categorias atribuídas a uma entidade (produto ou configuração/modelo),
- * suportando tanto o campo singular `categoria` quanto o campo plural `categorias`.
+ * a partir do campo `categorias`.
  */
 export function getEntityCategories(entity: any): any[] {
-  if (!entity) return [];
-  const list: any[] = [];
-  if (Array.isArray(entity.categorias)) {
-    list.push(...entity.categorias);
-  }
-  if (
-    entity.categoria &&
-    !list.some(
-      (c) =>
-        (c?.slug && c.slug === entity.categoria?.slug) ||
-        (c?.id && String(c.id) === String(entity.categoria?.id))
-    )
-  ) {
-    list.push(entity.categoria);
-  }
-  return list.filter(Boolean);
+  if (!entity || !Array.isArray(entity.categorias)) return [];
+  return entity.categorias.filter(Boolean);
 }
 
 /**
@@ -130,13 +110,17 @@ export function expandProductsForListing(
     const configs = getProductConfigurations(product);
 
     if (configs && configs.length > 0) {
-      // Se tiver query, verifica se a query dá match no nome do produto, marca ou categoria
+      // Se tiver query, verifica se a query dá match no nome do produto, marca ou categorias
+      const prodCats = getEntityCategories(product);
+      const categoryMatchesQuery = prodCats.some((c) =>
+        c.Nome?.toLowerCase().includes(cleanQuery)
+      );
       const productMatchesQuery =
         !cleanQuery ||
         product.Nome?.toLowerCase().includes(cleanQuery) ||
         product.Subtitulo?.toLowerCase().includes(cleanQuery) ||
         product.marca?.Nome?.toLowerCase().includes(cleanQuery) ||
-        product.categoria?.Nome?.toLowerCase().includes(cleanQuery);
+        categoryMatchesQuery;
 
       let targetConfigs = productMatchesQuery
         ? configs
@@ -214,7 +198,7 @@ export function expandProductsForListing(
         const cfgCats = getEntityCategories(cfg);
         const prodCats = getEntityCategories(product);
         const effectiveCats = cfgCats.length > 0 ? cfgCats : prodCats;
-        const primaryCategoria = effectiveCats[0] || cfg.categoria || product.categoria;
+        const primaryCategoria = effectiveCats[0] || null;
 
         result.push({
           ...product,
@@ -253,7 +237,7 @@ export function expandProductsForListing(
       result.push({
         ...product,
         categorias: prodCats,
-        categoria: prodCats[0] || product.categoria,
+        categoria: prodCats[0] || null,
       });
     }
   }

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     "populate[Grupos_variacao][populate][Opcoes][populate]=*",
     "populate[Galeria]=true",
     "populate[marca]=true",
-    "populate[categoria]=true",
+    "populate[categorias]=true",
     "populate[Imagem_destaque]=true",
     "populate[Foto_mais_vendidos]=true",
   ];
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   if (q) {
     const encoded = encodeURIComponent(q);
     queryParts.push(
-      `filters[$or][0][Nome][$containsi]=${encoded}&filters[$or][1][Subtitulo][$containsi]=${encoded}&filters[$or][2][marca][Nome][$containsi]=${encoded}&filters[$or][3][categoria][Nome][$containsi]=${encoded}&filters[$or][4][Grupos_variacao][Opcoes][Nome][$containsi]=${encoded}&filters[$or][5][Configuracoes][Nome][$containsi]=${encoded}`
+      `filters[$or][0][Nome][$containsi]=${encoded}&filters[$or][1][Subtitulo][$containsi]=${encoded}&filters[$or][2][marca][Nome][$containsi]=${encoded}&filters[$or][3][categorias][Nome][$containsi]=${encoded}&filters[$or][4][Grupos_variacao][Opcoes][Nome][$containsi]=${encoded}&filters[$or][5][Configuracoes][Nome][$containsi]=${encoded}`
     );
   }
 
@@ -63,12 +63,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    if (categorySlugs.length === 1) {
-      queryParts.push(`filters[categoria][slug][$eq]=${encodeURIComponent(categorySlugs[0])}`);
-    } else {
-      categorySlugs.forEach((slug, idx) => {
-        queryParts.push(`filters[categoria][slug][$in][${idx}]=${encodeURIComponent(slug)}`);
-      });
+    const catOrClauses: string[] = [];
+    categorySlugs.forEach((slug) => {
+      const enc = encodeURIComponent(slug);
+      catOrClauses.push(`filters[$or][${catOrClauses.length}][categorias][slug][$eq]=${enc}`);
+      catOrClauses.push(`filters[$or][${catOrClauses.length}][Configuracoes][categorias][slug][$eq]=${enc}`);
+    });
+    if (catOrClauses.length > 0) {
+      queryParts.push(catOrClauses.join("&"));
     }
   }
 

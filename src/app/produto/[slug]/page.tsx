@@ -179,7 +179,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const category = (product.categorias && product.categorias[0]) || product.categoria;
+  const category = (product.categorias && product.categorias[0]) || null;
   const relatedProducts = await getRelatedProducts(
     category?.documentId,
     product.id,
