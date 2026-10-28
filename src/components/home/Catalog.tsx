@@ -14,6 +14,12 @@ interface CatalogCategory {
   slug: string;
   Texto_catalogo?: string;
   Logo_marca?: any;
+  subcategorias?: Array<{
+    id?: number | string;
+    documentId?: string;
+    Nome?: string;
+    slug?: string;
+  }>;
 }
 
 // ─── Componente Tabs com Indicador Deslizante ─────────────────
@@ -147,14 +153,45 @@ export default function Catalog({
 
   const displayCategory = categories[displayIdx] || categories[0];
 
-  // Filtra produtos pela categoria ativa (compara documentId ou id em todas as categorias do produto)
+  // Filtra produtos pela categoria ativa (considerando match direto ou produtos de subcategorias/categoria_pai)
+  const activeKeys = new Set<string>();
+  if (displayCategory) {
+    if (displayCategory.documentId) activeKeys.add(String(displayCategory.documentId));
+    if (displayCategory.id) activeKeys.add(String(displayCategory.id));
+    if (displayCategory.slug) activeKeys.add(displayCategory.slug.toLowerCase().trim());
+
+    if (Array.isArray(displayCategory.subcategorias)) {
+      displayCategory.subcategorias.forEach((sub: any) => {
+        if (sub.documentId) activeKeys.add(String(sub.documentId));
+        if (sub.id) activeKeys.add(String(sub.id));
+        if (sub.slug) activeKeys.add(sub.slug.toLowerCase().trim());
+      });
+    }
+  }
+
   const filteredProducts = allProducts.filter((p: any) => {
-    const activeId = displayCategory?.documentId || displayCategory?.id;
-    if (!activeId) return false;
+    if (activeKeys.size === 0) return false;
     const cats: any[] = Array.isArray(p.categorias) && p.categorias.length > 0
       ? p.categorias
       : (p.categoria ? [p.categoria] : []);
-    return cats.some((c: any) => (c?.documentId || c?.id) === activeId);
+
+    return cats.some((c: any) => {
+      const docId = c?.documentId ? String(c.documentId) : null;
+      const id = c?.id !== undefined ? String(c.id) : null;
+      const slug = c?.slug ? c.slug.toLowerCase().trim() : null;
+      const parentDocId = c?.categoria_pai?.documentId ? String(c.categoria_pai.documentId) : null;
+      const parentId = c?.categoria_pai?.id !== undefined ? String(c.categoria_pai.id) : null;
+      const parentSlug = c?.categoria_pai?.slug ? c.categoria_pai.slug.toLowerCase().trim() : null;
+
+      return (
+        (docId && activeKeys.has(docId)) ||
+        (id && activeKeys.has(id)) ||
+        (slug && activeKeys.has(slug)) ||
+        (parentDocId && activeKeys.has(parentDocId)) ||
+        (parentId && activeKeys.has(parentId)) ||
+        (parentSlug && activeKeys.has(parentSlug))
+      );
+    });
   });
 
   // Limita a 8 produtos (2 linhas de 4)

@@ -86,6 +86,7 @@ export default function ProductListing({
   const [selectedPriceRange, setSelectedPriceRange] = useState("all");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [draftCategories, setDraftCategories] = useState<string[]>([]);
   const [selectedColor, setSelectedColor] = useState("all");
   const [selectedSort, setSelectedSort] = useState("default");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -178,11 +179,16 @@ export default function ProductListing({
       { id?: string | number; Nome: string; slug: string; count: number }
     >();
 
+    const currentSlugLower = categorySlug?.toLowerCase().trim();
+
     allProductsCatalog.forEach((p) => {
       const cats = getEntityCategories(p);
       cats.forEach((cat) => {
         const slug = cat.slug || cat.Nome?.toLowerCase().trim();
         if (!slug || !cat.Nome) return;
+        // Se já estamos dentro de uma categoria, exclui ela mesma para mostrar apenas subcategorias/modelos
+        if (currentSlugLower && slug.toLowerCase().trim() === currentSlugLower) return;
+
         if (!map.has(slug)) {
           map.set(slug, {
             id: cat.id || cat.documentId,
@@ -198,7 +204,7 @@ export default function ProductListing({
     return Array.from(map.values()).sort((a, b) =>
       a.Nome.localeCompare(b.Nome, "pt-BR")
     );
-  }, [allProductsCatalog]);
+  }, [allProductsCatalog, categorySlug]);
 
   // Filtra e ordena produtos localmente com precisão instantânea
   const filteredAndSortedProducts = useMemo(() => {
@@ -507,14 +513,19 @@ export default function ProductListing({
             </div>
           )}
 
-          {/* Dropdown: Categorias (Múltipla Escolha) */}
-          {availableCategories.length > 0 && !categorySlug && (
+          {/* Dropdown: Categorias / Subcategorias (Múltipla Escolha) */}
+          {availableCategories.length > 0 && (
             <div className="relative">
               <button
                 type="button"
-                onClick={() =>
-                  setOpenDropdown(openDropdown === "category" ? null : "category")
-                }
+                onClick={() => {
+                  if (openDropdown === "category") {
+                    setOpenDropdown(null);
+                  } else {
+                    setDraftCategories(selectedCategories);
+                    setOpenDropdown("category");
+                  }
+                }}
                 className={`flex items-center gap-1.5 text-[13px] md:text-[14px] font-sans cursor-pointer transition-colors ${
                   selectedCategories.length > 0
                     ? "font-semibold text-black"
@@ -523,10 +534,12 @@ export default function ProductListing({
               >
                 <span>
                   {selectedCategories.length === 0
-                    ? "Categorias"
+                    ? categorySlug
+                      ? "Subcategorias"
+                      : "Categorias"
                     : selectedCategories.length === 1
-                    ? availableCategories.find((c) => c.slug === selectedCategories[0])?.Nome || "1 Categoria"
-                    : `Categorias (${selectedCategories.length})`}
+                    ? availableCategories.find((c) => c.slug === selectedCategories[0])?.Nome || "1 selecionada"
+                    : `${categorySlug ? "Subcategorias" : "Categorias"} (${selectedCategories.length})`}
                 </span>
                 {selectedCategories.length > 0 && (
                   <span className="w-1.5 h-1.5 rounded-full bg-black inline-block ml-0.5" />
@@ -551,59 +564,89 @@ export default function ProductListing({
               {openDropdown === "category" && (
                 <div
                   data-lenis-prevent
-                  className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 bg-white border border-stone-200 rounded-xl shadow-lg p-2 z-30 flex flex-col gap-1 max-h-72 overflow-y-auto cart-scroll"
+                  className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-72 bg-white border border-stone-200 rounded-xl shadow-xl z-30 flex flex-col overflow-hidden"
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCategories([]);
-                    }}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer flex items-center justify-between ${
-                      selectedCategories.length === 0
-                        ? "bg-stone-100 font-semibold text-black"
-                        : "hover:bg-stone-50 text-stone-700"
-                    }`}
-                  >
-                    <span>Todas as categorias</span>
-                    <span className="text-[11px] text-stone-400">
-                      ({allProductsCatalog.length})
-                    </span>
-                  </button>
+                  {/* Lista com scroll */}
+                  <div className="p-2 flex flex-col gap-1 max-h-64 overflow-y-auto cart-scroll">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftCategories([]);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer flex items-center justify-between ${
+                        draftCategories.length === 0
+                          ? "bg-stone-100 font-semibold text-black"
+                          : "hover:bg-stone-50 text-stone-700"
+                      }`}
+                    >
+                      <span>
+                        {categorySlug ? "Todas as subcategorias" : "Todas as categorias"}
+                      </span>
+                      <span className="text-[11px] text-stone-400">
+                        ({allProductsCatalog.length})
+                      </span>
+                    </button>
 
-                  <div className="h-[1px] bg-stone-100 my-1" />
+                    <div className="h-[1px] bg-stone-100 my-1" />
 
-                  {availableCategories.map((cat) => {
-                    const isChecked = selectedCategories.includes(cat.slug);
-                    return (
-                      <label
-                        key={cat.slug}
-                        className={`w-full px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer flex items-center justify-between select-none ${
-                          isChecked
-                            ? "bg-stone-50 font-medium text-black"
-                            : "hover:bg-stone-50/70 text-stone-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              setSelectedCategories((prev) =>
-                                prev.includes(cat.slug)
-                                  ? prev.filter((s) => s !== cat.slug)
-                                  : [...prev, cat.slug]
-                              );
-                            }}
-                            className="w-4 h-4 rounded border-stone-300 text-black focus:ring-black cursor-pointer accent-black shrink-0"
-                          />
-                          <span className="truncate">{cat.Nome}</span>
-                        </div>
-                        <span className="text-[11px] text-stone-400 shrink-0 ml-2">
-                          ({cat.count})
-                        </span>
-                      </label>
-                    );
-                  })}
+                    {availableCategories.map((cat) => {
+                      const isChecked = draftCategories.includes(cat.slug);
+                      return (
+                        <label
+                          key={cat.slug}
+                          className={`w-full px-3 py-2 rounded-lg text-[13px] font-sans transition-colors cursor-pointer flex items-center justify-between select-none ${
+                            isChecked
+                              ? "bg-stone-50 font-medium text-black"
+                              : "hover:bg-stone-50/70 text-stone-700"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setDraftCategories((prev) =>
+                                  prev.includes(cat.slug)
+                                    ? prev.filter((s) => s !== cat.slug)
+                                    : [...prev, cat.slug]
+                                );
+                              }}
+                              className="w-4 h-4 rounded border-stone-300 text-black focus:ring-black cursor-pointer accent-black shrink-0"
+                            />
+                            <span className="truncate">{cat.Nome}</span>
+                          </div>
+                          <span className="text-[11px] text-stone-400 shrink-0 ml-2">
+                            ({cat.count})
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Rodapé com Botão Aplicar e Limpar */}
+                  <div className="p-2.5 bg-stone-50 border-t border-stone-100 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftCategories([]);
+                        setSelectedCategories([]);
+                        setOpenDropdown(null);
+                      }}
+                      className="text-[12px] text-stone-500 hover:text-black font-sans px-2 py-1 transition-colors cursor-pointer"
+                    >
+                      Limpar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategories(draftCategories);
+                        setOpenDropdown(null);
+                      }}
+                      className="px-4 py-1.5 bg-black text-white text-[12px] font-medium font-sans rounded-lg hover:bg-stone-800 transition-colors cursor-pointer shadow-sm"
+                    >
+                      Aplicar filtros
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1209,8 +1252,8 @@ export default function ProductListing({
             </div>
           )}
 
-          {/* Seção Dropdown: Categorias (Múltipla Escolha) */}
-          {availableCategories.length > 0 && !categorySlug && (
+          {/* Seção Dropdown: Categorias / Subcategorias (Múltipla Escolha) */}
+          {availableCategories.length > 0 && (
             <div className="flex flex-col py-3">
               <button
                 type="button"
@@ -1219,7 +1262,7 @@ export default function ProductListing({
               >
                 <div className="flex flex-col">
                   <span className="text-[15px] font-heading font-semibold text-black">
-                    Categorias
+                    {categorySlug ? "Subcategorias" : "Categorias"}
                   </span>
                   {tempCategories.length > 0 && (
                     <span className="text-[12px] font-sans text-stone-500 mt-0.5">
@@ -1272,7 +1315,9 @@ export default function ProductListing({
                           : "border-stone-200 text-stone-700 hover:border-stone-300"
                       }`}
                     >
-                      <span>Todas as categorias</span>
+                      <span>
+                        {categorySlug ? "Todas as subcategorias" : "Todas as categorias"}
+                      </span>
                       <span className="text-[11px] text-stone-400">
                         ({allProductsCatalog.length})
                       </span>

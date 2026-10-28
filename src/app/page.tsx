@@ -12,7 +12,7 @@ import { expandProductsForListing } from "@/utils/productUtils";
 async function getHomeData() {
   try {
     const url = getStrapiURL(
-      "/api/pagina-home?populate[Banner][populate]=*&populate[Categoria][populate][Categoria][populate]=*&populate[Videos_curtos][populate][Videos][populate]=*&populate[Feedbacks][populate]=*&populate[Projetos][populate][projetos][populate]=*&populate[Produto_destaque][populate][Caracteristicas][populate]=*&populate[Produto_destaque][populate][ImagemPrincipal]=true&populate[Mais_vendidos][populate][produtos][populate][Variacoes][populate]=*&populate[Mais_vendidos][populate][produtos][populate][marca]=true&populate[Mais_vendidos][populate][produtos][populate][garantias]=true&populate[Mais_vendidos][populate][produtos][populate][Foto_mais_vendidos]=true&populate[Catalogo][populate][categorias][populate][Logo_marca]=true"
+      "/api/pagina-home?populate[Banner][populate]=*&populate[Categoria][populate][Categoria][populate]=*&populate[Videos_curtos][populate][Videos][populate]=*&populate[Feedbacks][populate]=*&populate[Projetos][populate][projetos][populate]=*&populate[Produto_destaque][populate][Caracteristicas][populate]=*&populate[Produto_destaque][populate][ImagemPrincipal]=true&populate[Mais_vendidos][populate][produtos][populate][Variacoes][populate]=*&populate[Mais_vendidos][populate][produtos][populate][marca]=true&populate[Mais_vendidos][populate][produtos][populate][garantias]=true&populate[Mais_vendidos][populate][produtos][populate][Foto_mais_vendidos]=true&populate[Catalogo][populate][categorias][populate][Logo_marca]=true&populate[Catalogo][populate][categorias][populate][subcategorias]=true"
     );
     const res = await fetchStrapi(url, { cache: "no-store" });
     const json = await res.json();
@@ -43,7 +43,7 @@ async function getBestSellers() {
 async function getCatalogProducts() {
   try {
     const url = getStrapiURL(
-      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true"
+      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias][populate][categoria_pai]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true"
     );
     const res = await fetchStrapi(url, { cache: "no-store" });
     if (!res.ok) return [];
