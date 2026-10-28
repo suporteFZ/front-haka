@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
     }
 
     const catOrClauses: string[] = [];
-    categorySlugs.forEach((slug) => {
+    categorySlugs.forEach((slug, idx) => {
       const enc = encodeURIComponent(slug);
-      catOrClauses.push(`filters[$or][${catOrClauses.length}][categorias][slug][$eq]=${enc}`);
-      catOrClauses.push(`filters[$or][${catOrClauses.length}][Configuracoes][categorias][slug][$eq]=${enc}`);
+      catOrClauses.push(`filters[$or][0][categorias][slug][$in][${idx}]=${enc}`);
+      catOrClauses.push(`filters[$or][1][Configuracoes][categorias][slug][$in][${idx}]=${enc}`);
     });
     if (catOrClauses.length > 0) {
       queryParts.push(catOrClauses.join("&"));

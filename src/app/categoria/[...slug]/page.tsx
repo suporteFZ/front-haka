@@ -42,13 +42,13 @@ async function getCategoryProducts(
     const allSlugs = [categorySlug, ...subcategorySlugs].filter(Boolean);
 
     const orClauses: string[] = [];
-    allSlugs.forEach((s) => {
+    allSlugs.forEach((s, idx) => {
       const enc = encodeURIComponent(s);
-      orClauses.push(`filters[$or][${orClauses.length}][categorias][slug][$eq]=${enc}`);
-      orClauses.push(`filters[$or][${orClauses.length}][Configuracoes][categorias][slug][$eq]=${enc}`);
+      orClauses.push(`filters[$or][0][categorias][slug][$in][${idx}]=${enc}`);
+      orClauses.push(`filters[$or][1][Configuracoes][categorias][slug][$in][${idx}]=${enc}`);
     });
 
-    const filterQuery = `&${orClauses.join("&")}`;
+    const filterQuery = orClauses.length > 0 ? `&${orClauses.join("&")}` : "";
 
     const url = getStrapiURL(
       `/api/produtos?filters[Ativo][$ne]=false${filterQuery}&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
