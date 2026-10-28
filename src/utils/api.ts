@@ -45,7 +45,12 @@ export function stripConfiguracoesParam(url: string): string {
     const u = new URL(url);
     const newParams = new URLSearchParams();
     for (const [key, value] of u.searchParams.entries()) {
-      if (key.includes("Configuracoes") || value.includes("Configuracoes")) {
+      if (
+        key.includes("Configuracoes") ||
+        value.includes("Configuracoes") ||
+        key === "populate[categoria]" ||
+        key.includes("[categoria]")
+      ) {
         continue;
       }
       newParams.append(key, value);
@@ -56,6 +61,7 @@ export function stripConfiguracoesParam(url: string): string {
     return url
       .replace(/[?&]populate\[Configuracoes\][^&]*/g, "")
       .replace(/[?&]filters\[.*?\]\[Configuracoes\][^&]*/g, "")
+      .replace(/[?&]populate\[categoria\][^&]*/g, "")
       .replace(/[?&]&/g, "?");
   }
 }

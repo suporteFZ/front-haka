@@ -28,13 +28,13 @@ async function getRelatedProducts(
 
   try {
     const qs = new URLSearchParams({
-      "filters[categoria][documentId][$eq]": categoryDocumentId,
+      "filters[categorias][documentId][$eq]": categoryDocumentId,
       "filters[Ativo][$ne]": "false",
       "populate[Variacoes][populate]": "*",
       "populate[Configuracoes][populate]": "*",
       "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[marca]": "true",
-      "populate[categoria]": "true",
+      "populate[categorias]": "true",
       "populate[Galeria]": "true",
       "populate[Foto_mais_vendidos]": "true",
       "pagination[pageSize]": "20",
@@ -73,7 +73,6 @@ async function getProductData(slug: string) {
       "populate[Revestimentos][populate][Foto_amostra]": "true",
       "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[garantias]": "true",
-      "populate[categoria]": "true",
       "populate[categorias]": "true",
       "populate[marca]": "true",
       "populate[Imagem_destaque]": "true",
@@ -114,7 +113,7 @@ async function getProductData(slug: string) {
         "populate[Revestimentos][populate][Foto_amostra]": "true",
         "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
         "populate[garantias]": "true",
-        "populate[categoria]": "true",
+        "populate[categorias]": "true",
         "populate[marca]": "true",
         "populate[Imagem_destaque]": "true",
         "populate[Galeria]": "true",
@@ -180,7 +179,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const category = product.categoria;
+  const category = (product.categorias && product.categorias[0]) || product.categoria;
   const relatedProducts = await getRelatedProducts(
     category?.documentId,
     product.id,
