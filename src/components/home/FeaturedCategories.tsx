@@ -63,8 +63,6 @@ export default function FeaturedCategories({ data }: FeaturedCategoriesProps) {
                       src={imgDesktop}
                       alt={cat.Nome}
                       fill
-                      sizes="(max-width: 768px) 85vw, (max-width: 1200px) 60vw, 55vw"
-                      quality={85}
                       className="object-cover hidden md:block transition-transform duration-700 md:group-hover:scale-105"
                     />
                   )}
