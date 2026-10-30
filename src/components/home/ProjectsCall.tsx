@@ -266,7 +266,8 @@ export default function ProjectsCall({ data, featuredProjects }: ProjectsCallPro
                         src={coverUrl}
                         alt={project.Titulo}
                         fill
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 30vw"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 40vw"
+                        quality={85}
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     </div>
