@@ -112,13 +112,27 @@ export default function Footer({ globalData }: FooterProps) {
           </div>
 
           {/* Base do Footer (Copyright e Contato) */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-6 text-xs text-stone-500 font-sans">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 md:gap-6 text-[13px] md:text-sm text-stone-500 font-sans">
             
             {/* Contato (No mobile fica em cima do feito com) */}
             <div className="flex flex-col md:flex-row gap-4 md:gap-6 text-left order-1 md:order-2">
-              <span>{Footer.cidade}</span>
-              <span>{Footer.email}</span>
-              <span>{Footer.telefone}</span>
+              {Footer.cidade && <span>{Footer.cidade}</span>}
+              {Footer.email && (
+                <a
+                  href={`mailto:${Footer.email}`}
+                  className="hover:text-stone-300 transition-colors"
+                >
+                  {Footer.email}
+                </a>
+              )}
+              {Footer.telefone && (
+                <a
+                  href={`tel:${Footer.telefone.replace(/[^\d+]/g, "")}`}
+                  className="hover:text-stone-300 transition-colors"
+                >
+                  {Footer.telefone}
+                </a>
+              )}
             </div>
 
             {/* Feito com (No mobile fica no meio) */}
