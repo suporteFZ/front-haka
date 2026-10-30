@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { getStrapiMedia } from "@/utils/api";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -451,10 +452,11 @@ function VideoItem({
           className="w-full h-full object-cover rounded-[16px] md:rounded-[24px] pointer-events-none"
         />
       ) : thumbUrl ? (
-        <img
+        <Image
           src={thumbUrl}
           alt="Thumbnail"
-          loading="lazy"
+          fill
+          sizes="(max-width: 768px) 70vw, 320px"
           className="w-full h-full object-cover rounded-[16px] md:rounded-[24px] pointer-events-none"
         />
       ) : (

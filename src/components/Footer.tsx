@@ -147,13 +147,25 @@ export default function Footer({ globalData }: FooterProps) {
                   aria-label="FZ Commerce"
                 >
                   {logoFzUrl ? (
-                    <Image src={logoFzUrl} alt="FZ Commerce" width={100} height={20} className="object-contain" />
+                    <Image
+                      src={logoFzUrl}
+                      alt="FZ Commerce"
+                      width={160}
+                      height={24}
+                      className="h-[18px] md:h-[22px] w-auto object-contain"
+                    />
                   ) : (
                     <span className="text-white font-bold tracking-wider">FZ COMMERCE</span>
                   )}
                 </a>
               ) : logoFzUrl ? (
-                <Image src={logoFzUrl} alt="FZ Commerce" width={100} height={20} className="object-contain" />
+                <Image
+                  src={logoFzUrl}
+                  alt="FZ Commerce"
+                  width={160}
+                  height={24}
+                  className="h-[18px] md:h-[22px] w-auto object-contain"
+                />
               ) : (
                 <span className="text-white font-bold tracking-wider">FZ COMMERCE</span>
               )}

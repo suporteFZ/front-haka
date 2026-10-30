@@ -52,7 +52,7 @@ async function getGlobalData() {
     // Adicionamos no-store para evitar cache desatualizado durante o desenvolvimento
     const url = getStrapiURL("/api/global?populate[0]=Logo_branca&populate[1]=Logo&populate[2]=Menu_header&populate[3]=Footer.cta_imagem_fundo&populate[4]=Footer.menu_links&populate[5]=Footer.redes_sociais&populate[6]=Footer.logo_fz&populate[7]=Menu_header.categorias&populate[8]=Menu_header.marcas&populate[9]=Menu_header.links_rapidos&populate[10]=Menu_header.produtos_destaque.Imagem_destaque&populate[11]=Mais_buscados&populate[12]=Menu_mobile.Sublinks&populate[13]=Menu_mobile_footer_1&populate[14]=Menu_mobile_footer_2");
     const res = await fetch(url, {
-      cache: "no-store",
+      next: { revalidate: 120 },
     });
     
     if (!res.ok) {

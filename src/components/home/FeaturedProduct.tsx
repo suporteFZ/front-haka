@@ -78,6 +78,7 @@ export default function FeaturedProduct({ data }: { data: any }) {
                   src={imageUrl}
                   alt={currentImageObj?.alternativeText || NomeProduto || "Produto Destaque"}
                   fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-contain"
                 />
               </div>

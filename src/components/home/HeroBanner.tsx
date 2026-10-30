@@ -21,8 +21,9 @@ export default function HeroBanner({ bannerData }: HeroBannerProps) {
           src={bannerDesktopUrl}
           alt="Banner Home"
           fill
-          className="object-cover hidden md:block brightness-[0.7]" 
           priority
+          sizes="100vw"
+          className="object-cover hidden md:block brightness-[0.7]" 
         />
       )}
 
@@ -32,8 +33,8 @@ export default function HeroBanner({ bannerData }: HeroBannerProps) {
           src={bannerMobileUrl}
           alt="Banner Home Mobile"
           fill
+          sizes="100vw"
           className="object-cover block md:hidden brightness-[0.7]"
-          priority
         />
       )}
 
