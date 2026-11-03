@@ -84,6 +84,9 @@ export default function Header({ globalData }: HeaderProps) {
 
   const isMegaMenuOpen = activeMenuId !== null;
   const activeItem = globalData.Menu_header?.find((i: any) => i.id === activeMenuId);
+  const hasMegaMenuProducts = Boolean(
+    activeItem?.produtos_destaque?.some((p: any) => p.Ativo !== false)
+  );
 
   const logoBrancaUrl = getStrapiMedia(globalData.Logo_branca?.url) || "";
   const logoPretaUrl = getStrapiMedia(globalData.Logo?.url) || "";
@@ -118,7 +121,7 @@ export default function Header({ globalData }: HeaderProps) {
         <div 
           className={`absolute left-0 w-full bg-white top-0 shadow-xl transition-all duration-700 ease-in-out overflow-hidden ${
             isMegaMenuOpen
-              ? "h-[420px] opacity-100 z-10"
+              ? `${hasMegaMenuProducts ? "h-[420px]" : "h-[340px]"} opacity-100 z-10`
               : isSearchOpen
               ? "h-[370px] md:h-[380px] opacity-100 z-10"
               : isCartOpen

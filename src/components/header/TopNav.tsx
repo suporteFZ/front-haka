@@ -69,7 +69,14 @@ export default function TopNav({
       {/* MENU CENTRALIZADO (Somente Desktop) */}
       <nav className={`hidden md:flex gap-8 items-center font-medium text-[12px] font-sans ${isCompactLayout ? "text-black" : "text-white"}`}>
         {globalData.Menu_header?.map((item: any) => {
-          if (item.isMegaMenu) {
+          const hasCategorias = Boolean(item.categorias && item.categorias.length > 0);
+          const hasMarcas = Boolean(item.marcas && item.marcas.length > 0);
+          const hasLinks = Boolean(item.links_rapidos && item.links_rapidos.length > 0);
+          const hasProdutos = Boolean(item.produtos_destaque?.some((p: any) => p.Ativo !== false));
+          const hasContent = hasCategorias || hasMarcas || hasLinks || hasProdutos;
+          const isMegaMenu = Boolean(item.isMegaMenu || hasContent) && hasContent;
+
+          if (isMegaMenu) {
             return (
               <button
                 key={item.id}
