@@ -24,7 +24,8 @@ export default function Header({ globalData }: HeaderProps) {
     pathname?.startsWith("/marca") ||
     pathname?.startsWith("/busca") ||
     pathname?.startsWith("/projetos") ||
-    pathname?.startsWith("/showroom");
+    pathname?.startsWith("/showroom") ||
+    pathname?.startsWith("/blog");
   const lenis = useLenis();
 
   const [isScrolled, setIsScrolled] = useState(false);

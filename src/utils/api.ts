@@ -68,14 +68,34 @@ export function stripConfiguracoesParam(url: string): string {
 
 /**
  * Realiza fetch no Strapi com fallback resiliente para remoção de parâmetros
- * do novo campo `Configuracoes` caso o Strapi remoto de produção ainda não tenha
- * recebido o deploy do novo schema.
+ * do novo campo `Configuracoes` e fallback para o ambiente remoto de produção
+ * caso o Strapi local não possua registros ainda (ex: Pagina Home recém-criada).
  */
 export async function fetchStrapi(url: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(url, init);
-  if (!res.ok && url.includes("Configuracoes")) {
-    const fallbackUrl = stripConfiguracoesParam(url);
-    return fetch(fallbackUrl, init);
+  try {
+    const res = await fetch(url, init);
+    if (!res.ok) {
+      if (url.includes("Configuracoes")) {
+        const fallbackUrl = stripConfiguracoesParam(url);
+        const fallbackRes = await fetch(fallbackUrl, init);
+        if (fallbackRes.ok) return fallbackRes;
+      }
+      if ((res.status === 404 || res.status === 500) && (url.includes("localhost") || url.includes("127.0.0.1"))) {
+        const prodUrl = url
+          .replace("http://localhost:1337", "https://haka-admin.fzcommerce.com.br")
+          .replace("http://127.0.0.1:1337", "https://haka-admin.fzcommerce.com.br");
+        const prodRes = await fetch(prodUrl, init);
+        if (prodRes.ok) return prodRes;
+      }
+    }
+    return res;
+  } catch (err) {
+    if (url.includes("localhost") || url.includes("127.0.0.1")) {
+      const prodUrl = url
+        .replace("http://localhost:1337", "https://haka-admin.fzcommerce.com.br")
+        .replace("http://127.0.0.1:1337", "https://haka-admin.fzcommerce.com.br");
+      return fetch(prodUrl, init);
+    }
+    throw err;
   }
-  return res;
 }

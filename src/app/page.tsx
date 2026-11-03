@@ -6,55 +6,93 @@ import FeaturedProduct from "@/components/home/FeaturedProduct";
 import BestSellers from "@/components/home/BestSellers";
 import Catalog from "@/components/home/Catalog";
 import ProjectsCall, { ProjetoItem } from "@/components/home/ProjectsCall";
+import BlogCall from "@/components/home/BlogCall";
+import { PostItem, FALLBACK_POSTS } from "@/data/blog";
 import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import { expandProductsForListing } from "@/utils/productUtils";
 
 export const revalidate = 60;
 
 async function getHomeData() {
+  const query =
+    "/api/pagina-home?populate[Banner][populate]=*&populate[Categoria][populate][Categoria][populate]=*&populate[Videos_curtos][populate][Videos][populate]=*&populate[Feedbacks][populate]=*&populate[Projetos][populate][projetos][populate]=*&populate[Produto_destaque][populate][Caracteristicas][populate]=*&populate[Produto_destaque][populate][ImagemPrincipal]=true&populate[Mais_vendidos][populate][produtos][populate][Variacoes][populate]=*&populate[Mais_vendidos][populate][produtos][populate][marca]=true&populate[Mais_vendidos][populate][produtos][populate][garantias]=true&populate[Mais_vendidos][populate][produtos][populate][Foto_mais_vendidos]=true&populate[Catalogo][populate][categorias][populate][Logo_marca]=true&populate[Catalogo][populate][categorias][populate][subcategorias]=true";
   try {
-    const url = getStrapiURL(
-      "/api/pagina-home?populate[Banner][populate]=*&populate[Categoria][populate][Categoria][populate]=*&populate[Videos_curtos][populate][Videos][populate]=*&populate[Feedbacks][populate]=*&populate[Projetos][populate][projetos][populate]=*&populate[Produto_destaque][populate][Caracteristicas][populate]=*&populate[Produto_destaque][populate][ImagemPrincipal]=true&populate[Mais_vendidos][populate][produtos][populate][Variacoes][populate]=*&populate[Mais_vendidos][populate][produtos][populate][marca]=true&populate[Mais_vendidos][populate][produtos][populate][garantias]=true&populate[Mais_vendidos][populate][produtos][populate][Foto_mais_vendidos]=true&populate[Catalogo][populate][categorias][populate][Logo_marca]=true&populate[Catalogo][populate][categorias][populate][subcategorias]=true"
-    );
+    const url = getStrapiURL(query);
     const res = await fetchStrapi(url, { next: { revalidate: 60 } });
-    const json = await res.json();
-    return json.data;
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data) return json.data;
+    }
   } catch (error) {
-    console.error("Erro ao buscar dados da Home:", error);
-    return null;
+    console.error("Erro ao buscar dados da Home local:", error);
   }
+
+  // Fallback para o endpoint remoto caso a Home local não tenha sido preenchida no Strapi
+  try {
+    const prodRes = await fetch(`https://haka-admin.fzcommerce.com.br${query}`, { next: { revalidate: 60 } });
+    if (prodRes.ok) {
+      const json = await prodRes.json();
+      if (json?.data) return json.data;
+    }
+  } catch (err) {
+    console.error("Erro no fallback de produção da Home:", err);
+  }
+
+  return null;
 }
 
 // Buscar produtos marcados com o booleano "Mais_vendido: true" como fallback/garantia
 async function getBestSellers() {
+  const query =
+    "/api/produtos?filters[Mais_vendido][$eq]=true&filters[Ativo][$ne]=false&populate[Variacoes][populate]=*&populate[marca]=true&populate[Galeria]=true&populate[garantias]=true&populate[Foto_mais_vendidos]=true";
   try {
-    const url = getStrapiURL(
-      "/api/produtos?filters[Mais_vendido][$eq]=true&filters[Ativo][$ne]=false&populate[Variacoes][populate]=*&populate[marca]=true&populate[Galeria]=true&populate[garantias]=true&populate[Foto_mais_vendidos]=true"
-    );
+    const url = getStrapiURL(query);
     const res = await fetchStrapi(url, { next: { revalidate: 60 } });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return json.data || [];
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data && json.data.length > 0) return json.data;
+    }
   } catch (error) {
     console.error("Erro ao buscar produtos mais vendidos:", error);
-    return [];
   }
+
+  try {
+    const prodRes = await fetch(`https://haka-admin.fzcommerce.com.br${query}`, { next: { revalidate: 60 } });
+    if (prodRes.ok) {
+      const json = await prodRes.json();
+      if (json?.data && json.data.length > 0) return json.data;
+    }
+  } catch (_) {}
+
+  return [];
 }
 
 // Buscar produtos ativos para o catálogo (com variações para o hover da segunda foto e configurações expandidas)
 async function getCatalogProducts() {
+  const query =
+    "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias][populate][categoria_pai]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true";
   try {
-    const url = getStrapiURL(
-      "/api/produtos?filters[Ativo][$ne]=false&pagination[pageSize]=100&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias][populate][categoria_pai]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true"
-    );
+    const url = getStrapiURL(query);
     const res = await fetchStrapi(url, { next: { revalidate: 60 } });
-    if (!res.ok) return [];
-    const json = await res.json();
-    return expandProductsForListing(json.data || []);
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data && json.data.length > 3) {
+        return expandProductsForListing(json.data);
+      }
+    }
   } catch (error) {
     console.error("Erro ao buscar produtos do catálogo:", error);
-    return [];
   }
+
+  try {
+    const prodRes = await fetch(`https://haka-admin.fzcommerce.com.br${query}`, { next: { revalidate: 60 } });
+    if (prodRes.ok) {
+      const json = await prodRes.json();
+      return expandProductsForListing(json?.data || []);
+    }
+  } catch (_) {}
+
+  return [];
 }
 
 // Buscar projetos marcados com "Destaque_home: true" (ou primeiros projetos do Strapi)
@@ -91,12 +129,33 @@ async function getFeaturedProjects(): Promise<ProjetoItem[]> {
   }
 }
 
+// Buscar os 4 posts mais recentes para a seção de Blog na home
+async function getLatestPosts(): Promise<PostItem[]> {
+  try {
+    const url = getStrapiURL(
+      "/api/posts?populate[0]=Banner&sort[0]=createdAt:desc&pagination[pageSize]=4"
+    );
+    const res = await fetchStrapi(url, { next: { revalidate: 60 } });
+    if (res.ok) {
+      const json = await res.json();
+      if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
+        return json.data.slice(0, 4);
+      }
+    }
+    return [];
+  } catch (error) {
+    console.error("Erro ao buscar posts para a home:", error);
+    return [];
+  }
+}
+
 export default async function Home() {
-  const [homeData, bestSellers, catalogProducts, featuredProjects] = await Promise.all([
+  const [homeData, bestSellers, catalogProducts, featuredProjects, latestPosts] = await Promise.all([
     getHomeData(),
     getBestSellers(),
     getCatalogProducts(),
     getFeaturedProjects(),
+    getLatestPosts(),
   ]);
 
   if (!homeData) {
@@ -140,6 +199,11 @@ export default async function Home() {
 
       {/* SEÇÃO MAIS VENDIDAS */}
       <BestSellers data={homeData.Mais_vendidos} products={bestSellers} />
+
+      {/* SEÇÃO BLOG (4 CARDS: FOTO, TÍTULO E RESUMO) - SÓ APARECE SE HOUVER POSTS CADASTRADOS */}
+      {latestPosts && latestPosts.length > 0 && (
+        <BlogCall posts={latestPosts} />
+      )}
     </div>
   );
 }
