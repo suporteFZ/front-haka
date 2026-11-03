@@ -18,42 +18,119 @@ interface ProductPageProps {
   }>;
 }
 
-// Buscar produtos relacionados da mesma categoria (excluindo o produto atual)
-async function getRelatedProducts(
-  categoryDocumentId: string | undefined,
-  currentProductId: string | number,
-  currentDocumentId?: string
-) {
-  if (!categoryDocumentId) return [];
+// Extrai todos os slugs e IDs de categorias da mesma família (categoria atual, pai e subcategorias irmãs)
+function extractCategoryFamily(product: any): { slugs: string[]; documentIds: string[] } {
+  const slugs = new Set<string>();
+  const documentIds = new Set<string>();
 
+  const processCategory = (cat: any) => {
+    if (!cat) return;
+    if (cat.slug) slugs.add(cat.slug.toLowerCase().trim());
+    if (cat.documentId) documentIds.add(cat.documentId);
+
+    // Se a categoria tiver subcategorias vinculadas
+    if (Array.isArray(cat.subcategorias)) {
+      cat.subcategorias.forEach((sub: any) => {
+        if (sub?.slug) slugs.add(sub.slug.toLowerCase().trim());
+        if (sub?.documentId) documentIds.add(sub.documentId);
+      });
+    }
+
+    // Se a categoria tiver uma categoria pai vinculada
+    if (cat.categoria_pai) {
+      if (cat.categoria_pai.slug) slugs.add(cat.categoria_pai.slug.toLowerCase().trim());
+      if (cat.categoria_pai.documentId) documentIds.add(cat.categoria_pai.documentId);
+
+      // As outras subcategorias irmãs sob o mesmo pai
+      if (Array.isArray(cat.categoria_pai.subcategorias)) {
+        cat.categoria_pai.subcategorias.forEach((sub: any) => {
+          if (sub?.slug) slugs.add(sub.slug.toLowerCase().trim());
+          if (sub?.documentId) documentIds.add(sub.documentId);
+        });
+      }
+    }
+  };
+
+  // Categorias diretas do produto
+  if (Array.isArray(product?.categorias)) {
+    product.categorias.forEach(processCategory);
+  } else if (product?.categoria) {
+    processCategory(product.categoria);
+  }
+
+  // Categorias presentes nas Configurações do produto
+  if (Array.isArray(product?.Configuracoes)) {
+    product.Configuracoes.forEach((cfg: any) => {
+      if (Array.isArray(cfg?.categorias)) {
+        cfg.categorias.forEach(processCategory);
+      }
+    });
+  }
+
+  return {
+    slugs: Array.from(slugs),
+    documentIds: Array.from(documentIds),
+  };
+}
+
+// Buscar produtos relacionados da mesma família de categorias (excluindo o produto atual)
+async function getRelatedProducts(
+  categorySlugs: string[],
+  currentProductId: string | number,
+  currentDocumentId?: string,
+  brandSlug?: string
+) {
   try {
-    const qs = new URLSearchParams({
-      "filters[categorias][documentId][$eq]": categoryDocumentId,
-      "filters[Ativo][$ne]": "false",
-      "populate[Variacoes][populate]": "*",
-      "populate[Configuracoes][populate]": "*",
-      "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
-      "populate[marca]": "true",
-      "populate[categorias]": "true",
-      "populate[Galeria]": "true",
-      "populate[Foto_mais_vendidos]": "true",
-      "pagination[pageSize]": "20",
+    const orClauses: string[] = [];
+
+    // Filtra por categorias da família tanto nas categorias do produto quanto em Configuracoes.categorias
+    categorySlugs.slice(0, 50).forEach((slug, idx) => {
+      const enc = encodeURIComponent(slug);
+      orClauses.push(`filters[$or][0][categorias][slug][$in][${idx}]=${enc}`);
+      orClauses.push(`filters[$or][1][Configuracoes][categorias][slug][$in][${idx}]=${enc}`);
     });
 
-    const url = getStrapiURL(`/api/produtos?${qs.toString()}`);
-    const res = await fetchStrapi(url, { cache: "no-store" });
-    if (!res.ok) return [];
+    const categoryFilter = orClauses.length > 0 ? `&${orClauses.join("&")}` : "";
 
-    const json = await res.json();
-    const items = json.data || [];
+    const url = getStrapiURL(
+      `/api/produtos?filters[Ativo][$ne]=false${categoryFilter}&pagination[pageSize]=24&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+    );
+
+    const res = await fetchStrapi(url, { cache: "no-store" });
+    let items: any[] = [];
+    if (res.ok) {
+      const json = await res.json();
+      items = json.data || [];
+    }
 
     // Filtra para remover o produto atual (por id e documentId)
-    return items.filter(
+    let filtered = items.filter(
       (p: any) =>
-        p.id !== currentProductId &&
+        String(p.id) !== String(currentProductId) &&
         (!currentDocumentId || p.documentId !== currentDocumentId) &&
         p.Ativo !== false
     );
+
+    // Fallback caso a categoria não tenha outros produtos: busca produtos da mesma marca
+    if (filtered.length === 0 && brandSlug) {
+      const brandUrl = getStrapiURL(
+        `/api/produtos?filters[Ativo][$ne]=false&filters[marca][slug][$eq]=${encodeURIComponent(
+          brandSlug
+        )}&pagination[pageSize]=16&populate[Variacoes][populate]=*&populate[Configuracoes][populate]=*&populate[Grupos_variacao][populate][Opcoes][populate]=*&populate[marca]=true&populate[categorias]=true&populate[Galeria]=true&populate[Foto_mais_vendidos]=true`
+      );
+      const brandRes = await fetchStrapi(brandUrl, { cache: "no-store" });
+      if (brandRes.ok) {
+        const brandJson = await brandRes.json();
+        filtered = (brandJson.data || []).filter(
+          (p: any) =>
+            String(p.id) !== String(currentProductId) &&
+            (!currentDocumentId || p.documentId !== currentDocumentId) &&
+            p.Ativo !== false
+        );
+      }
+    }
+
+    return filtered;
   } catch (error) {
     console.error("Erro ao buscar produtos relacionados:", error);
     return [];
@@ -73,7 +150,10 @@ async function getProductData(slug: string) {
       "populate[Revestimentos][populate][Foto_amostra]": "true",
       "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
       "populate[garantias]": "true",
-      "populate[categorias]": "true",
+      "populate[categorias][populate][categoria_pai][populate]": "subcategorias",
+      "populate[categorias][populate][subcategorias]": "true",
+      "populate[Configuracoes][populate][categorias][populate][categoria_pai][populate]": "subcategorias",
+      "populate[Configuracoes][populate][categorias][populate][subcategorias]": "true",
       "populate[marca]": "true",
       "populate[Imagem_destaque]": "true",
       "populate[Galeria]": "true",
@@ -113,7 +193,10 @@ async function getProductData(slug: string) {
         "populate[Revestimentos][populate][Foto_amostra]": "true",
         "populate[Grupos_variacao][populate][Opcoes][populate]": "*",
         "populate[garantias]": "true",
-        "populate[categorias]": "true",
+        "populate[categorias][populate][categoria_pai][populate]": "subcategorias",
+        "populate[categorias][populate][subcategorias]": "true",
+        "populate[Configuracoes][populate][categorias][populate][categoria_pai][populate]": "subcategorias",
+        "populate[Configuracoes][populate][categorias][populate][subcategorias]": "true",
         "populate[marca]": "true",
         "populate[Imagem_destaque]": "true",
         "populate[Galeria]": "true",
@@ -179,11 +262,12 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  const category = (product.categorias && product.categorias[0]) || null;
+  const categoryFamily = extractCategoryFamily(product);
   const relatedProducts = await getRelatedProducts(
-    category?.documentId,
+    categoryFamily.slugs,
     product.id,
-    product.documentId
+    product.documentId,
+    product.marca?.slug
   );
 
   return (

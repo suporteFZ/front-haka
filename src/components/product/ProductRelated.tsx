@@ -102,7 +102,6 @@ export default function ProductRelated({
       <div
         ref={sliderRef}
         onScroll={checkScroll}
-        data-lenis-prevent
         className="flex items-stretch gap-4 md:gap-6 overflow-x-auto scrollbar-hide no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden scroll-smooth snap-x snap-mandatory py-2 px-4 sm:px-6 md:px-0"
       >
         {products.map((item) => (
