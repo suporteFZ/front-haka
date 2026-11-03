@@ -1493,7 +1493,6 @@ export default function ProductHero({ product }: ProductHeroProps) {
                     <div
                       ref={modelScrollRef}
                       className="flex flex-col gap-2 p-1 pr-2 max-h-[350px] overflow-y-auto cart-scroll"
-                      data-lenis-prevent
                     >
                       {configuracoes.map((cfg, idx) => {
                         const isSelected = isConfigEqual(selectedConfiguracao, cfg);

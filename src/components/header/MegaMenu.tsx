@@ -107,9 +107,9 @@ export default function MegaMenu({ isMegaMenuOpen, activeItem, onClose }: MegaMe
                       key={prod.id} 
                       href={`/produto/${prod.slug || prod.Nome?.toLowerCase()}`} 
                       onClick={onClose} 
-                      className="group flex flex-col w-36 flex-shrink-0"
+                      className="group flex flex-col w-[148px] bg-white border border-[#EDEDED] hover:border-stone-400 rounded-2xl p-2.5 transition-all duration-300 hover:shadow-xs flex-shrink-0"
                     >
-                      <div className="relative w-36 h-48 rounded-xl overflow-hidden bg-[#F5F5F3] flex items-center justify-center mb-2">
+                      <div className="relative w-full h-40 rounded-xl overflow-hidden bg-[#F7F7F6] flex items-center justify-center mb-2">
                         {imgUrl ? (
                           <Image 
                             src={getStrapiMedia(imgUrl) || ""} 
@@ -123,9 +123,11 @@ export default function MegaMenu({ isMegaMenuOpen, activeItem, onClose }: MegaMe
                           </div>
                         )}
                       </div>
-                      <span className="text-[13px] md:text-sm font-sans font-medium text-black group-hover:text-stone-500 transition-colors line-clamp-2 leading-tight">
-                        {prod.Nome}
-                      </span>
+                      <div className="px-1 pb-0.5">
+                        <span className="text-[13px] font-sans font-medium text-black group-hover:text-stone-500 transition-colors line-clamp-1 block">
+                          {prod.Nome}
+                        </span>
+                      </div>
                     </Link>
                   );
                 })}
