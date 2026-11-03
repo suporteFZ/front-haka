@@ -99,27 +99,36 @@ export default function MegaMenu({ isMegaMenuOpen, activeItem, onClose }: MegaMe
             <div className="flex-shrink-0 ml-auto">
               <h3 className="text-stone-400 text-sm font-medium mb-3">Mais vendidas</h3>
               <div className="flex gap-4">
-                {activeProdutos.map((prod: any) => (
-                  <Link 
-                    key={prod.id} 
-                    href={`/produto/${prod.slug || prod.Nome?.toLowerCase()}`} 
-                    onClick={onClose} 
-                    className="group relative w-36 h-56 rounded-xl overflow-hidden bg-stone-100 flex-shrink-0"
-                  >
-                    {prod.Imagem_destaque ? (
-                      <Image 
-                        src={getStrapiMedia(prod.Imagem_destaque.url) || ""} 
-                        alt={prod.Nome} 
-                        fill 
-                        className="object-cover group-hover:scale-105 transition-transform duration-500" 
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-stone-200 flex items-center justify-center p-2 text-center text-xs text-stone-500 group-hover:bg-stone-300 transition-colors">
-                        {prod.Nome}
+                {activeProdutos.slice(0, 3).map((prod: any) => {
+                  const imgUrl = prod.Imagem_destaque?.url || prod.Foto_mais_vendidos?.url || prod.Galeria?.[0]?.url;
+
+                  return (
+                    <Link 
+                      key={prod.id} 
+                      href={`/produto/${prod.slug || prod.Nome?.toLowerCase()}`} 
+                      onClick={onClose} 
+                      className="group flex flex-col w-36 flex-shrink-0"
+                    >
+                      <div className="relative w-36 h-48 rounded-xl overflow-hidden bg-[#F5F5F3] flex items-center justify-center mb-2">
+                        {imgUrl ? (
+                          <Image 
+                            src={getStrapiMedia(imgUrl) || ""} 
+                            alt={prod.Nome} 
+                            fill 
+                            className="object-cover group-hover:scale-105 transition-transform duration-500" 
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-stone-200 flex items-center justify-center p-2 text-center text-xs text-stone-500 group-hover:bg-stone-300 transition-colors">
+                            {prod.Nome}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </Link>
-                ))}
+                      <span className="text-[13px] md:text-sm font-sans font-medium text-black group-hover:text-stone-500 transition-colors line-clamp-2 leading-tight">
+                        {prod.Nome}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           )}
