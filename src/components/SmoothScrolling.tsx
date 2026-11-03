@@ -83,7 +83,7 @@ function LenisRouteWatcher() {
 
 export default function SmoothScrolling({ children }: { children: React.ReactNode }) {
   return (
-    <ReactLenis root options={{ lerp: 0.1, smoothWheel: true, autoResize: true }}>
+    <ReactLenis root options={{ lerp: 0.1, smoothWheel: true, autoResize: true, allowNestedScroll: true }}>
       <Suspense fallback={null}>
         <LenisRouteWatcher />
       </Suspense>
