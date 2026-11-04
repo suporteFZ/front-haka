@@ -114,6 +114,8 @@ export default function FeaturedProduct({ data }: { data: any }) {
                       <button
                         onClick={() => setActiveIndex(isOpen ? null : index)}
                         className="w-full flex items-center justify-between py-3 md:py-3 text-left focus:outline-none group"
+                        aria-expanded={isOpen}
+                        aria-label={`Ver detalhes de ${item.Nome}`}
                       >
                         <span className={`text-[14px] md:text-[15px] font-sans transition-colors duration-300 ${isOpen ? 'text-[#000000] font-semibold' : 'text-[#000000] font-semibold group-hover:text-[#000000]'}`}>
                           {item.Nome}
@@ -144,10 +146,18 @@ export default function FeaturedProduct({ data }: { data: any }) {
               <div className="flex lg:hidden flex-col w-full relative -mt-4">
                 {/* Navigation Arrows */}
                 <div className="flex justify-end gap-3 mb-6 pr-1">
-                  <button id="feat-prev" className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:text-black transition-colors z-20">
+                  <button
+                    id="feat-prev"
+                    aria-label="Slide anterior"
+                    className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:text-black transition-colors z-20 cursor-pointer"
+                  >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                   </button>
-                  <button id="feat-next" className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:text-black transition-colors z-20">
+                  <button
+                    id="feat-next"
+                    aria-label="Próximo slide"
+                    className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-500 hover:text-black transition-colors z-20 cursor-pointer"
+                  >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                   </button>
                 </div>

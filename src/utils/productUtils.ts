@@ -200,20 +200,26 @@ export function expandProductsForListing(
         const effectiveCats = cfgCats.length > 0 ? cfgCats : prodCats;
         const primaryCategoria = effectiveCats[0] || null;
 
+        // Limpa payloads pesados para não inflar o HTML da página (otimização crítica de payload e Schema.org)
         result.push({
-          ...product,
           id: `${product.id}-cfg-${cfg.id || idx}`,
           originalId: product.id,
+          documentId: product.documentId,
           Nome: configTitle,
           slug: `${product.slug}?${params.toString()}`,
           Subtitulo: cfg.Descricao || product.Subtitulo,
           Descricao: cfg.Descricao || product.Subtitulo,
           Preco: cfg.Preco || product.Preco,
           Preco_promocional: cfg.Preco_promocional || product.Preco_promocional,
-          Galeria: cardGaleria,
-          categoria: primaryCategoria,
-          categorias: effectiveCats,
-          // Removemos Grupos_variacao e Variacoes do card expandido para não vazar opções de outras variações no hover
+          Preco_diferenciado: product.Preco_diferenciado,
+          Parcelas: product.Parcelas,
+          Ativo: product.Ativo !== false,
+          marca: product.marca ? { Nome: product.marca.Nome, slug: product.marca.slug } : undefined,
+          categoria: primaryCategoria ? { id: primaryCategoria.id, Nome: primaryCategoria.Nome, slug: primaryCategoria.slug } : undefined,
+          categorias: effectiveCats.map((c: any) => ({ id: c.id, Nome: c.Nome, slug: c.slug })),
+          Galeria: cardGaleria.slice(0, 3).map((img: any) => ({ url: img.url, alternativeText: img.alternativeText || null })),
+          Imagem_destaque: product.Imagem_destaque?.url ? { url: product.Imagem_destaque.url, alternativeText: product.Imagem_destaque.alternativeText || null } : undefined,
+          Foto_mais_vendidos: product.Foto_mais_vendidos?.url ? { url: product.Foto_mais_vendidos.url, alternativeText: product.Foto_mais_vendidos.alternativeText || null } : undefined,
           Grupos_variacao: [],
           Variacoes: [],
           isConfigurationCard: true,
@@ -234,10 +240,40 @@ export function expandProductsForListing(
         }
       }
       const prodCats = getEntityCategories(product);
+      const primaryCategoria = prodCats[0] || null;
+
       result.push({
-        ...product,
-        categorias: prodCats,
-        categoria: prodCats[0] || null,
+        id: product.id,
+        originalId: product.id,
+        documentId: product.documentId,
+        Nome: product.Nome,
+        slug: product.slug,
+        Subtitulo: product.Subtitulo,
+        Descricao: product.Descricao || product.Subtitulo,
+        Preco: product.Preco,
+        Preco_promocional: product.Preco_promocional,
+        Preco_diferenciado: product.Preco_diferenciado,
+        Parcelas: product.Parcelas,
+        Ativo: product.Ativo !== false,
+        marca: product.marca ? { Nome: product.marca.Nome, slug: product.marca.slug } : undefined,
+        categoria: primaryCategoria ? { id: primaryCategoria.id, Nome: primaryCategoria.Nome, slug: primaryCategoria.slug } : undefined,
+        categorias: prodCats.map((c: any) => ({ id: c.id, Nome: c.Nome, slug: c.slug })),
+        Galeria: Array.isArray(product.Galeria)
+          ? product.Galeria.slice(0, 3).map((img: any) => ({ url: img.url, alternativeText: img.alternativeText || null }))
+          : undefined,
+        Imagem_destaque: product.Imagem_destaque?.url ? { url: product.Imagem_destaque.url, alternativeText: product.Imagem_destaque.alternativeText || null } : undefined,
+        Foto_mais_vendidos: product.Foto_mais_vendidos?.url ? { url: product.Foto_mais_vendidos.url, alternativeText: product.Foto_mais_vendidos.alternativeText || null } : undefined,
+        Variacoes: Array.isArray(product.Variacoes)
+          ? product.Variacoes.slice(0, 8).map((v: any) => ({
+              Nome_cor: v.Nome_cor,
+              Preco: v.Preco,
+              Preco_promocional: v.Preco_promocional,
+              Preco_diferenciado: v.Preco_diferenciado,
+              Miniatura: v.Miniatura?.url ? { url: v.Miniatura.url } : undefined,
+              Galeria: Array.isArray(v.Galeria) ? v.Galeria.slice(0, 2).map((img: any) => ({ url: img.url })) : undefined,
+            }))
+          : [],
+        Grupos_variacao: [],
       });
     }
   }
