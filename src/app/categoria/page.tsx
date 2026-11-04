@@ -5,12 +5,25 @@ import ProductListing from "@/components/common/ProductListing";
 import { ProductCardItem } from "@/components/common/ProductCard";
 import { expandProductsForListing } from "@/utils/productUtils";
 
+import { SITE_URL } from "@/utils/seo";
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Catálogo Completo | Haka",
+  title: "Catálogo Completo | Haka Ergonomia Corporativa",
   description:
-    "Confira todas as opções de mobiliário corporativo, cadeiras e soluções ergonômicas para seu ambiente.",
+    "Confira todas as opções de mobiliário corporativo, cadeiras e soluções ergonômicas para seu ambiente de trabalho.",
+  alternates: {
+    canonical: "/categoria",
+  },
+  openGraph: {
+    title: "Catálogo Completo | Haka Ergonomia Corporativa",
+    description:
+      "Confira todas as opções de mobiliário corporativo, cadeiras e soluções ergonômicas para seu ambiente de trabalho.",
+    url: `${SITE_URL}/categoria`,
+    siteName: "Haka",
+    type: "website",
+  },
 };
 
 // Buscar todos os produtos ativos do catálogo

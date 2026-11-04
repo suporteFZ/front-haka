@@ -5,6 +5,8 @@ import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import ProductListing from "@/components/common/ProductListing";
 import { ProductCardItem } from "@/components/common/ProductCard";
 import { expandProductsForListing } from "@/utils/productUtils";
+import { SITE_URL, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
 
 interface BrandPageProps {
   params: Promise<{
@@ -84,11 +86,24 @@ export async function generateMetadata({
   if (!slug) return { title: "Marca | Haka" };
 
   const brand = await getBrandData(slug);
-  if (!brand) return { title: "Marca não encontrada | Haka" };
+  if (!brand) return { title: "Marca não encontrada | Haka", robots: { index: false, follow: false } };
+
+  const title = `${brand.Nome} | Haka - Ergonomia e Design Corporativo`;
+  const description = `Confira toda a linha de produtos corporativos da marca ${brand.Nome} na Haka. Soluções ergonômicas de alta performance para empresas.`;
 
   return {
-    title: `${brand.Nome} | Haka`,
-    description: `Confira todos os produtos da marca ${brand.Nome} na Haka. Qualidade, ergonomia e inovação para o seu ambiente.`,
+    title,
+    description,
+    alternates: {
+      canonical: `/marca/${slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/marca/${slug}`,
+      siteName: "Haka",
+      type: "website",
+    },
   };
 }
 
@@ -107,13 +122,21 @@ export default async function BrandPage({ params }: BrandPageProps) {
 
   const products = await getBrandProducts(brand.slug || slug);
 
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    { name: brand.Nome, url: `/marca/${slug}` },
+  ];
+
   return (
-    <ProductListing
-      title={brand.Nome}
-      products={products}
-      initialProducts={products}
-      brandSlug={brand.slug || slug}
-      brandName={brand.Nome}
-    />
+    <>
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
+      <ProductListing
+        title={brand.Nome}
+        products={products}
+        initialProducts={products}
+        brandSlug={brand.slug || slug}
+        brandName={brand.Nome}
+      />
+    </>
   );
 }

@@ -3,6 +3,8 @@ import { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getStrapiURL, getStrapiMedia } from "@/utils/api";
+import { SITE_URL, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
 import { PostItem, FALLBACK_POSTS } from "@/data/blog";
 
 export const revalidate = 60;
@@ -11,6 +13,17 @@ export const metadata: Metadata = {
   title: "Blog | Haka Ergonomia & Design Corporativo",
   description:
     "Artigos, dicas sobre ergonomia, tendências em ambientes corporativos e bem-estar no trabalho.",
+  alternates: {
+    canonical: "/blog",
+  },
+  openGraph: {
+    title: "Blog | Haka Ergonomia & Design Corporativo",
+    description:
+      "Artigos, dicas sobre ergonomia, tendências em ambientes corporativos e bem-estar no trabalho.",
+    url: `${SITE_URL}/blog`,
+    siteName: "Haka Blog",
+    type: "website",
+  },
 };
 
 async function getPosts(): Promise<PostItem[]> {
@@ -37,8 +50,14 @@ async function getPosts(): Promise<PostItem[]> {
 export default async function BlogPage() {
   const posts = await getPosts();
 
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    { name: "Blog", url: "/blog" },
+  ];
+
   return (
     <main className="w-full bg-white min-h-screen pt-24 md:pt-32 pb-24">
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
       <div className="w-full max-w-[1600px] mx-auto px-[17px] md:px-8">
         {/* Cabeçalho da Página */}
         <div className="max-w-2xl mb-10 md:mb-12">

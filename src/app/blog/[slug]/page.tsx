@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getStrapiURL, getStrapiMedia } from "@/utils/api";
+import { SITE_URL, generateBlogPostingSchema, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
 import { PostItem, FALLBACK_POSTS } from "@/data/blog";
 import RichTextRenderer from "@/components/blog/RichTextRenderer";
 
@@ -65,6 +67,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   if (!post) {
     return {
       title: "Post não encontrado | Haka Blog",
+      robots: { index: false, follow: false },
     };
   }
 
@@ -73,15 +76,41 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     ? rawCover.startsWith("http")
       ? rawCover
       : getStrapiMedia(rawCover)
-    : undefined;
+    : `${SITE_URL}/icon.png`;
+
+  const description =
+    post.Resumo || "Artigo exclusivo do blog corporativo Haka sobre ergonomia e bem-estar.";
 
   return {
     title: `${post.Titulo} | Blog Haka`,
-    description: post.Resumo || "Artigo exclusivo do blog corporativo Haka.",
+    description,
+    alternates: {
+      canonical: `/blog/${slug}`,
+    },
     openGraph: {
       title: post.Titulo,
-      description: post.Resumo || undefined,
-      images: coverUrl ? [{ url: coverUrl }] : undefined,
+      description,
+      url: `${SITE_URL}/blog/${slug}`,
+      siteName: "Haka Blog",
+      type: "article",
+      images: [
+        {
+          url: coverUrl,
+          width: 1200,
+          height: 630,
+          alt: post.Titulo,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.Titulo,
+      description,
+      images: [coverUrl],
+    },
+    robots: {
+      index: true,
+      follow: true,
     },
   };
 }
@@ -101,8 +130,18 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       : getStrapiMedia(rawCover)
     : "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
 
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    { name: "Blog", url: "/blog" },
+    { name: post.Titulo, url: `/blog/${slug}` },
+  ];
+
   return (
     <article className="w-full bg-white min-h-screen pt-24 md:pt-32 pb-20">
+      {/* Schemas Schema.org: BlogPosting (Rich Results) + BreadcrumbList */}
+      <JsonLd data={generateBlogPostingSchema(post)} />
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
+
       {/* Container Principal do Artigo: Unificado na mesma largura do texto */}
       <div className="w-full max-w-[800px] mx-auto px-[17px] md:px-6">
         {/* Cabeçalho do Post: Título & Resumo */}

@@ -3,13 +3,26 @@ import { Metadata } from "next";
 import { getStrapiURL } from "@/utils/api";
 import { PaginaShowroomData, FALLBACK_SHOWROOM } from "@/data/showroom";
 import ShowroomView from "@/components/showroom/ShowroomView";
+import { SITE_URL, generateShowroomSchema, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Nosso Showroom | Haka",
+  title: "Nosso Showroom | Haka Ergonomia Corporativa",
   description:
-    "Conheça o showroom da Haka. Um espaço onde design, ergonomia e conforto se encontram para planejar seu próximo ambiente de trabalho.",
+    "Conheça o showroom físico da Haka. Um espaço imersivo onde design, ergonomia e conforto se encontram para você vivenciar cadeiras e mobiliário corporativo de alta performance.",
+  alternates: {
+    canonical: "/showroom",
+  },
+  openGraph: {
+    title: "Nosso Showroom | Haka",
+    description:
+      "Conheça o showroom físico da Haka. Um espaço imersivo para planejar seu próximo ambiente de trabalho corporativo.",
+    url: `${SITE_URL}/showroom`,
+    siteName: "Haka",
+    type: "website",
+  },
 };
 
 async function getShowroomPageData(): Promise<PaginaShowroomData> {
@@ -51,5 +64,16 @@ async function getShowroomPageData(): Promise<PaginaShowroomData> {
 export default async function ShowroomPage() {
   const data = await getShowroomPageData();
 
-  return <ShowroomView data={data} />;
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    { name: "Showroom", url: "/showroom" },
+  ];
+
+  return (
+    <>
+      <JsonLd data={generateShowroomSchema(data)} />
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
+      <ShowroomView data={data} />
+    </>
+  );
 }

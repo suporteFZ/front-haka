@@ -2,7 +2,9 @@ import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getStrapiURL, fetchStrapi } from "@/utils/api";
+import { getStrapiURL, fetchStrapi, getStrapiMedia } from "@/utils/api";
+import { SITE_URL, generateProductSchema, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
 import ProductHero from "@/components/product/ProductHero";
 import ProductBanner from "@/components/product/ProductBanner";
 import ProductTechSpecs from "@/components/product/ProductTechSpecs";
@@ -237,13 +239,52 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
 
   if (!product || product.Ativo === false) {
     return {
-      title: "Produto não encontrado - Haka",
+      title: "Produto não encontrado | Haka",
+      robots: { index: false, follow: false },
     };
   }
 
+  const rawImage =
+    product.Imagem_destaque?.url ||
+    product.Foto_mais_vendidos?.url ||
+    (Array.isArray(product.Galeria) && product.Galeria[0]?.url);
+  const imageUrl = rawImage ? getStrapiMedia(rawImage) : `${SITE_URL}/icon.png`;
+
+  const description =
+    product.Subtitulo ||
+    `Conheça a cadeira ergonômica ${product.Nome} da Haka. Design inteligente, ergonomia avançada e conforto para ambientes corporativos de alta performance.`;
+
   return {
-    title: `${product.Nome} - Haka`,
-    description: product.Subtitulo || "Detalhes do produto na loja Haka",
+    title: `${product.Nome} | Haka - Ergonomia Corporativa`,
+    description,
+    alternates: {
+      canonical: `/produto/${slug}`,
+    },
+    openGraph: {
+      title: `${product.Nome} | Haka`,
+      description,
+      url: `${SITE_URL}/produto/${slug}`,
+      siteName: "Haka",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 800,
+          alt: product.Nome,
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${product.Nome} | Haka`,
+      description,
+      images: [imageUrl],
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   };
 }
 
@@ -266,8 +307,25 @@ export default async function ProductPage({ params }: ProductPageProps) {
     product.marca?.slug
   );
 
+  const mainCategory =
+    Array.isArray(product.categorias) && product.categorias.length > 0
+      ? product.categorias[0]
+      : null;
+
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    ...(mainCategory
+      ? [{ name: mainCategory.Nome, url: `/categoria/${mainCategory.slug}` }]
+      : []),
+    { name: product.Nome, url: `/produto/${slug}` },
+  ];
+
   return (
     <ProductProvider product={product}>
+      {/* Schemas Schema.org: Product (Google Rich Results) + BreadcrumbList */}
+      <JsonLd data={generateProductSchema(product)} />
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
+
       <div className="w-full min-h-screen bg-white text-[#000000] px-0 md:px-8 min-[1600px]:px-0 flex justify-center">
         {/* Container Principal com largura de 1600px e espaçamento otimizado para mobile e desktop */}
         <div className="w-full max-w-[1600px] pt-26 sm:pt-24 md:pt-32 pb-24 md:pb-28 flex flex-col gap-6 md:gap-8">

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import HeroBanner from "@/components/home/HeroBanner";
 import FeaturedCategories from "@/components/home/FeaturedCategories";
 import ShortVideos from "@/components/home/ShortVideos";
@@ -10,8 +11,32 @@ import BlogCall from "@/components/home/BlogCall";
 import { PostItem, FALLBACK_POSTS } from "@/data/blog";
 import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import { expandProductsForListing } from "@/utils/productUtils";
+import { SITE_URL, DEFAULT_DESCRIPTION } from "@/utils/seo";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Haka | Ergonomia e Mobiliário Corporativo de Alta Performance",
+  description: DEFAULT_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "Haka | Ergonomia e Mobiliário Corporativo",
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Haka",
+    type: "website",
+    images: [
+      {
+        url: `${SITE_URL}/icon.png`,
+        width: 800,
+        height: 800,
+        alt: "Haka Ergonomia Corporativa",
+      },
+    ],
+  },
+};
 
 async function getHomeData() {
   const query =

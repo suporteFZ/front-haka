@@ -1,14 +1,61 @@
 import React from "react";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getStrapiURL, fetchStrapi } from "@/utils/api";
 import ProductListing from "@/components/common/ProductListing";
 import { ProductCardItem } from "@/components/common/ProductCard";
 import { expandProductsForListing } from "@/utils/productUtils";
+import { SITE_URL, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
 
 interface CategoryPageProps {
   params: Promise<{
     slug: string[];
   }>;
+}
+
+export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  if (!slug || slug.length === 0) {
+    return { title: "Categoria | Haka" };
+  }
+
+  const currentSlug = slug[slug.length - 1];
+  const category = await getCategoryData(currentSlug);
+
+  if (!category) {
+    return {
+      title: "Categoria não encontrada | Haka",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `${category.Nome} | Haka - Ergonomia Corporativa`;
+  const description =
+    category.Texto ||
+    `Confira a linha completa de ${category.Nome} da Haka. Soluções ergonômicas de alta performance para ambientes de trabalho corporativos.`;
+
+  const canonicalPath = `/categoria/${slug.join("/")}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}${canonicalPath}`,
+      siteName: "Haka",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
 }
 
 // Buscar dados da categoria com hierarquia (pais e filhas)
@@ -106,14 +153,22 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const subcategorySlugs = subcategories.map((s: any) => s.slug).filter(Boolean);
   const products = await getCategoryProducts(currentSlug, subcategorySlugs);
 
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    { name: category.Nome, url: `/categoria/${slug.join("/")}` },
+  ];
+
   return (
-    <ProductListing
-      title={category.Nome}
-      description={category.Texto}
-      products={products}
-      initialProducts={products}
-      categorySlug={currentSlug}
-      subcategorySlugs={subcategorySlugs}
-    />
+    <>
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
+      <ProductListing
+        title={category.Nome}
+        description={category.Texto}
+        products={products}
+        initialProducts={products}
+        categorySlug={currentSlug}
+        subcategorySlugs={subcategorySlugs}
+      />
+    </>
   );
 }

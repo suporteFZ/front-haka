@@ -4,12 +4,26 @@ import { getStrapiURL } from "@/utils/api";
 import { ProjetoItem, CategoriaProjetoItem, FALLBACK_PROJECTS } from "@/data/projects";
 import ProjectsView from "@/components/projetos/ProjectsView";
 
+import { SITE_URL, generateBreadcrumbSchema } from "@/utils/seo";
+import JsonLd from "@/components/seo/JsonLd";
+
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Projetos Corporativos & Portfólio | Haka",
   description:
     "Conheça os projetos corporativos desenvolvidos pela Haka. Ambientes completos que transformam a rotina de trabalho em experiência de conforto, sofisticação e produtividade.",
+  alternates: {
+    canonical: "/projetos",
+  },
+  openGraph: {
+    title: "Projetos Corporativos & Portfólio | Haka",
+    description:
+      "Conheça os projetos corporativos desenvolvidos pela Haka. Ambientes corporativos completos.",
+    url: `${SITE_URL}/projetos`,
+    siteName: "Haka",
+    type: "website",
+  },
 };
 
 async function getProjetosPageData(): Promise<{
@@ -117,12 +131,20 @@ export default async function ProjetosPage({ searchParams }: ProjetosPageProps) 
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const { projetos, categories, headerData } = await getProjetosPageData();
 
+  const breadcrumbs = [
+    { name: "Início", url: "/" },
+    { name: "Projetos", url: "/projetos" },
+  ];
+
   return (
-    <ProjectsView
-      initialProjects={projetos}
-      initialSlug={resolvedSearchParams.slug}
-      headerData={headerData}
-      categories={categories}
-    />
+    <>
+      <JsonLd data={generateBreadcrumbSchema(breadcrumbs)} />
+      <ProjectsView
+        initialProjects={projetos}
+        initialSlug={resolvedSearchParams.slug}
+        headerData={headerData}
+        categories={categories}
+      />
+    </>
   );
 }
