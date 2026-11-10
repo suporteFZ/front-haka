@@ -12,6 +12,8 @@ export default function HeroBanner({ bannerData }: HeroBannerProps) {
 
   const bannerDesktopUrl = getStrapiMedia(bannerData.Desktop?.url) || "";
   const bannerMobileUrl = getStrapiMedia(bannerData.Mobile?.url) || "";
+  const bannerLink = bannerData.link_botao || "/showroom";
+  const isExternal = bannerLink.startsWith("http://") || bannerLink.startsWith("https://");
 
   return (
     <section className="relative w-full h-screen flex flex-col justify-end items-center pb-12">
@@ -48,7 +50,9 @@ export default function HeroBanner({ bannerData }: HeroBannerProps) {
         
         {bannerData.texto_botao && (
           <Link 
-            href="/showroom" 
+            href={bannerLink} 
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noopener noreferrer" : undefined}
             className="bg-white text-black px-6 py-2.5 md:px-10 md:py-3.5 rounded-full font-medium text-[14px] md:text-[15px] hover:bg-stone-200 transition-colors mb-6 md:mb-12"
           >
             {bannerData.texto_botao}
